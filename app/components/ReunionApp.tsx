@@ -6,13 +6,29 @@ import CommentSection from "@/app/components/CommentSection";
 import ResultsTable from "@/app/components/ResultsTable";
 import Toast from "@/app/components/Toast";
 import VoteForm from "@/app/components/VoteForm";
-import type { CommentRecord, DateOption, ToastState, VoteRecord } from "@/lib/types";
+import {
+  deserializeSelectionsFromStorage,
+  sortSelections,
+} from "@/lib/dates";
+import type {
+  CommentRecord,
+  DateOption,
+  ToastState,
+  VoteRecord,
+  VoteSelection,
+} from "@/lib/types";
 
 type ReunionAppProps = {
   dateOptions: DateOption[];
 };
 
 type StoredVote = {
+  fullName: string;
+  selections: VoteSelection[];
+  submittedAt: string;
+};
+
+type LegacyStoredVote = {
   fullName: string;
   selectedDates: string[];
   submittedAt: string;
@@ -21,6 +37,21 @@ type StoredVote = {
 type TabId = "vote" | "results";
 
 const STORAGE_KEY = "class-reunion-11b-vote";
+
+function isSelectionArray(value: unknown): value is VoteSelection[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as VoteSelection).date === "string" &&
+        typeof (item as VoteSelection).day === "string" &&
+        Array.isArray((item as VoteSelection).slots) &&
+        (item as VoteSelection).slots.every((slot) => typeof slot === "string"),
+    )
+  );
+}
 
 function readStoredVote(): StoredVote | null {
   if (typeof window === "undefined") {
@@ -34,17 +65,31 @@ function readStoredVote(): StoredVote | null {
       return null;
     }
 
-    const parsed = JSON.parse(rawValue) as StoredVote;
+    const parsed = JSON.parse(rawValue) as Partial<StoredVote & LegacyStoredVote>;
 
     if (
       typeof parsed.fullName !== "string" ||
-      !Array.isArray(parsed.selectedDates) ||
       typeof parsed.submittedAt !== "string"
     ) {
       return null;
     }
 
-    return parsed;
+    const selections = isSelectionArray(parsed.selections)
+      ? sortSelections(parsed.selections)
+      : Array.isArray(parsed.selectedDates) &&
+          parsed.selectedDates.every((value) => typeof value === "string")
+        ? deserializeSelectionsFromStorage(parsed.selectedDates)
+        : null;
+
+    if (!selections || selections.length === 0) {
+      return null;
+    }
+
+    return {
+      fullName: parsed.fullName,
+      selections,
+      submittedAt: parsed.submittedAt,
+    };
   } catch {
     return null;
   }
@@ -156,7 +201,10 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
     }
   }, [activeTab, refreshResults]);
 
-  function handleVoteSubmitted(vote: { fullName: string; selectedDates: string[] }) {
+  function handleVoteSubmitted(vote: {
+    fullName: string;
+    selections: VoteSelection[];
+  }) {
     const persistedVote = {
       ...vote,
       submittedAt: new Date().toISOString(),
@@ -287,7 +335,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
           <VoteForm
             dateOptions={dateOptions}
             initialFullName={storedVote?.fullName ?? ""}
-            initialSelectedDates={storedVote?.selectedDates ?? []}
+            initialSelections={storedVote?.selections ?? []}
             onSubmitted={handleVoteSubmitted}
           />
         )

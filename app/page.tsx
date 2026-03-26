@@ -36,7 +36,7 @@ export default function HomePage() {
                   Период
                 </div>
                 <div className="mt-1 text-sm text-ink/80">
-                  Июнь - сентябрь 2026, день и вечер
+                  Июнь - сентябрь 2026, пятничный вечер и слоты по выходным
                 </div>
               </div>
               <div>

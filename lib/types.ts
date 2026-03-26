@@ -1,16 +1,24 @@
+export type VoteDay = "fri" | "sat" | "sun";
+
+export type VoteSlot = "evening" | "12-15" | "15-18" | "18-21";
+
+export type VoteSelection = {
+  date: string;
+  day: VoteDay;
+  slots: VoteSlot[];
+};
+
 export type DateOption = {
-  value: string;
-  label: string;
   dateKey: string;
   isoDate: string;
-  weekday: "fri" | "sat" | "sun";
+  label: string;
+  weekday: VoteDay;
   weekdayLabel: "Пт" | "Сб" | "Вс";
-  timeSlot: "day" | "evening";
-  timeLabel: "День" | "Вечер";
   dayNumber: number;
   monthIndex: number;
   monthKey: string;
   monthLabel: string;
+  slots: VoteSlot[];
   year: number;
 };
 
@@ -18,7 +26,7 @@ export type VoteRecord = {
   id: number;
   fullName: string;
   normalizedFullName: string;
-  selectedDates: string[];
+  selections: VoteSelection[];
   createdAt: string;
   updatedAt: string;
 };

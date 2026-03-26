@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { errorResponse } from "@/lib/api";
-import { sortSelectedDates } from "@/lib/dates";
+import {
+  deserializeSelectionsFromStorage,
+  serializeSelectionsForStorage,
+  sortSelections,
+} from "@/lib/dates";
 import { normalizeFullName, votePayloadSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +23,7 @@ function serializeVote(vote: {
     id: vote.id,
     fullName: vote.fullName,
     normalizedFullName: vote.normalizedFullName,
-    selectedDates: vote.selectedDates,
+    selections: deserializeSelectionsFromStorage(vote.selectedDates),
     createdAt: vote.createdAt.toISOString(),
     updatedAt: vote.updatedAt.toISOString(),
   };
@@ -64,7 +68,8 @@ export async function POST(request: Request) {
     const json = await request.json();
     const payload = votePayloadSchema.parse(json);
     const normalizedFullName = normalizeFullName(payload.fullName);
-    const selectedDates = sortSelectedDates(payload.selectedDates);
+    const selections = sortSelections(payload.selections);
+    const selectedDates = serializeSelectionsForStorage(selections);
 
     const vote = await prisma.vote.upsert({
       where: {
