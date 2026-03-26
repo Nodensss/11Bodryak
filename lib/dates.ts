@@ -1,21 +1,32 @@
 import type { DateOption } from "@/lib/types";
 
 const MOSCOW_TIMEZONE = "Europe/Moscow";
-const BASE_DATE_UTC = Date.UTC(2026, 5, 1);
+const START_DATE_UTC = Date.UTC(2026, 5, 1);
+const END_DATE_UTC = Date.UTC(2026, 8, 30);
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const WEEKDAY_SUFFIXES: Record<DateOption["weekday"], string> = {
   fri: "fri",
   sat: "sat",
   sun: "sun",
 };
 
-const WEEKDAY_LABELS: Record<DateOption["weekday"], string> = {
+const WEEKDAY_LABELS: Record<DateOption["weekday"], DateOption["weekdayLabel"]> = {
   fri: "Пт",
   sat: "Сб",
   sun: "Вс",
 };
 
-function addDays(baseUtc: number, days: number): Date {
-  return new Date(baseUtc + days * 24 * 60 * 60 * 1000);
+function capitalize(value: string): string {
+  return value.slice(0, 1).toLocaleUpperCase("ru-RU") + value.slice(1);
+}
+
+function getMonthLabel(date: Date): string {
+  return capitalize(
+    new Intl.DateTimeFormat("ru-RU", {
+      month: "long",
+      timeZone: MOSCOW_TIMEZONE,
+    }).format(date),
+  );
 }
 
 function toIsoDate(date: Date): string {
@@ -41,27 +52,49 @@ function formatDateValue(date: Date, weekday: DateOption["weekday"]): string {
   return `${toIsoDate(date)}-${WEEKDAY_SUFFIXES[weekday]}`;
 }
 
+export function parseIsoDate(isoDate: string): Date {
+  const [year, month, day] = isoDate.split("-").map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 export function generateDateOptions(): DateOption[] {
   const dates: DateOption[] = [];
 
-  for (let week = 0; week < 8; week += 1) {
-    const mondayUtc = BASE_DATE_UTC + week * 7 * 24 * 60 * 60 * 1000;
-    const friday = addDays(mondayUtc, 4);
-    const saturday = addDays(mondayUtc, 5);
-    const sunday = addDays(mondayUtc, 6);
+  for (
+    let currentDateUtc = START_DATE_UTC;
+    currentDateUtc <= END_DATE_UTC;
+    currentDateUtc += DAY_IN_MS
+  ) {
+    const date = new Date(currentDateUtc);
+    const dayOfWeek = date.getUTCDay();
+    let weekday: DateOption["weekday"] | null = null;
 
-    for (const [date, weekday] of [
-      [friday, "fri"],
-      [saturday, "sat"],
-      [sunday, "sun"],
-    ] as const) {
-      dates.push({
-        value: formatDateValue(date, weekday),
-        label: formatDateLabel(date, weekday),
-        isoDate: toIsoDate(date),
-        weekday,
-      });
+    if (dayOfWeek === 5) {
+      weekday = "fri";
+    } else if (dayOfWeek === 6) {
+      weekday = "sat";
+    } else if (dayOfWeek === 0) {
+      weekday = "sun";
     }
+
+    if (!weekday) {
+      continue;
+    }
+
+    dates.push({
+      value: formatDateValue(date, weekday),
+      label: formatDateLabel(date, weekday),
+      isoDate: toIsoDate(date),
+      weekday,
+      weekdayLabel: WEEKDAY_LABELS[weekday],
+      dayNumber: date.getUTCDate(),
+      monthIndex: date.getUTCMonth(),
+      monthKey: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
+      monthLabel: getMonthLabel(date),
+      year: date.getUTCFullYear(),
+      isEvening: weekday === "fri",
+    });
   }
 
   return dates;

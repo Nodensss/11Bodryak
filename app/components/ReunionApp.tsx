@@ -247,6 +247,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
       ) : (
         <div className="space-y-5">
           <ResultsTable
+            comments={comments}
             dateOptions={dateOptions}
             error={resultsError}
             isRefreshing={isRefreshing}

@@ -3,6 +3,13 @@ export type DateOption = {
   label: string;
   isoDate: string;
   weekday: "fri" | "sat" | "sun";
+  weekdayLabel: "Пт" | "Сб" | "Вс";
+  dayNumber: number;
+  monthIndex: number;
+  monthKey: string;
+  monthLabel: string;
+  year: number;
+  isEvening: boolean;
 };
 
 export type VoteRecord = {

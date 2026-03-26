@@ -1,9 +1,11 @@
 "use client";
 
-import type { DateOption, VoteRecord } from "@/lib/types";
+import { useEffect, useState } from "react";
 import { formatDisplayDateTime } from "@/lib/dates";
+import type { CommentRecord, DateOption, VoteRecord } from "@/lib/types";
 
 type ResultsTableProps = {
+  comments: CommentRecord[];
   dateOptions: DateOption[];
   error: string | null;
   isRefreshing: boolean;
@@ -11,13 +13,100 @@ type ResultsTableProps = {
   votes: VoteRecord[];
 };
 
+function escapeCsvCell(value: string) {
+  const escapedValue = value.replaceAll('"', '""');
+
+  if (
+    escapedValue.includes(";") ||
+    escapedValue.includes("\n") ||
+    escapedValue.includes('"')
+  ) {
+    return `"${escapedValue}"`;
+  }
+
+  return escapedValue;
+}
+
+function buildCsv(
+  dateOptions: DateOption[],
+  votes: VoteRecord[],
+  comments: CommentRecord[],
+) {
+  const sortedVotes = [...votes].sort((left, right) =>
+    left.fullName.localeCompare(right.fullName, "ru"),
+  );
+  const lines: string[] = [];
+
+  lines.push("Сводка голосования");
+  lines.push(["Дата", "Итого", "Выбрали"].map(escapeCsvCell).join(";"));
+
+  for (const option of dateOptions) {
+    const selectedVotes = sortedVotes.filter((vote) =>
+      vote.selectedDates.includes(option.value),
+    );
+    const selectedBy = selectedVotes.map((vote) => vote.fullName).join(", ");
+
+    lines.push(
+      [option.label, String(selectedVotes.length), selectedBy]
+        .map(escapeCsvCell)
+        .join(";"),
+    );
+  }
+
+  lines.push("");
+  lines.push("Проголосовавшие");
+  lines.push(["Имя", "Выбранные даты", "Обновлено"].map(escapeCsvCell).join(";"));
+
+  for (const vote of sortedVotes) {
+    const selectedLabels = dateOptions
+      .filter((option) => vote.selectedDates.includes(option.value))
+      .map((option) => option.label)
+      .join(", ");
+
+    lines.push(
+      [vote.fullName, selectedLabels, formatDisplayDateTime(vote.updatedAt)]
+        .map(escapeCsvCell)
+        .join(";"),
+    );
+  }
+
+  lines.push("");
+  lines.push("Комментарии");
+  lines.push(["Автор", "Комментарий", "Создано"].map(escapeCsvCell).join(";"));
+
+  for (const comment of comments) {
+    lines.push(
+      [comment.authorName, comment.text, formatDisplayDateTime(comment.createdAt)]
+        .map(escapeCsvCell)
+        .join(";"),
+    );
+  }
+
+  return `\uFEFF${lines.join("\n")}`;
+}
+
 export default function ResultsTable({
+  comments,
   dateOptions,
   error,
   isRefreshing,
   onRefresh,
   votes,
 }: ResultsTableProps) {
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
+
+  useEffect(() => {
+    if (!isLinkCopied) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsLinkCopied(false);
+    }, 2200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isLinkCopied]);
+
   const sortedVotes = [...votes].sort((left, right) =>
     left.fullName.localeCompare(right.fullName, "ru"),
   );
@@ -30,34 +119,93 @@ export default function ResultsTable({
     (left, right) =>
       new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
   );
+  const bestDates =
+    maxVotes > 0
+      ? dateOptions.filter((_, index) => voteCounts[index] === maxVotes)
+      : [];
+
+  async function handleCopyLink() {
+    const currentUrl = window.location.href;
+
+    try {
+      await navigator.clipboard.writeText(currentUrl);
+      setIsLinkCopied(true);
+    } catch {
+      window.prompt("Скопируй ссылку вручную", currentUrl);
+    }
+  }
+
+  function handleDownloadCsv() {
+    const csv = buildCsv(dateOptions, votes, comments);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "11b-results.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="space-y-5">
       <div className="rounded-[28px] border border-sky/70 bg-white/80 p-5 shadow-card backdrop-blur sm:p-7">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-ink">
               Результаты и обсуждение
             </h2>
-            <p className="mt-2 text-sm leading-6 text-ink/65">
-              Таблица обновляется при каждом открытии вкладки и по кнопке
-              ниже.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/65">
+              Таблица обновляется при каждом открытии вкладки. Результаты можно
+              скинуть по публичной ссылке или скачать в CSV.
             </p>
           </div>
 
-          <button
-            className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isRefreshing}
-            onClick={onRefresh}
-            type="button"
-          >
-            {isRefreshing ? "Обновляем..." : "Обновить"}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white"
+              onClick={handleCopyLink}
+              type="button"
+            >
+              {isLinkCopied ? "Ссылка скопирована" : "Скопировать ссылку"}
+            </button>
+            <button
+              className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white"
+              onClick={handleDownloadCsv}
+              type="button"
+            >
+              Скачать CSV
+            </button>
+            <button
+              className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isRefreshing}
+              onClick={onRefresh}
+              type="button"
+            >
+              {isRefreshing ? "Обновляем..." : "Обновить"}
+            </button>
+          </div>
         </div>
 
         {error ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
             {error}
+          </div>
+        ) : null}
+
+        {bestDates.length > 0 ? (
+          <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
+            <div className="font-semibold">Лидируют сейчас:</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {bestDates.map((date) => (
+                <span
+                  className="rounded-full bg-white px-3 py-1 text-sm text-emerald-900"
+                  key={date.value}
+                >
+                  {date.label} • {maxVotes}
+                </span>
+              ))}
+            </div>
           </div>
         ) : null}
 

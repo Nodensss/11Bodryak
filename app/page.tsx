@@ -36,7 +36,7 @@ export default function HomePage() {
                   Период
                 </div>
                 <div className="mt-1 text-sm text-ink/80">
-                  8 недель, с 5 июня по 26 июля 2026
+                  Июнь - сентябрь 2026, пятницы и выходные
                 </div>
               </div>
               <div>
@@ -44,7 +44,7 @@ export default function HomePage() {
                   Комментарии
                 </div>
                 <div className="mt-1 text-sm text-ink/80">
-                  Общая лента с новыми сообщениями сверху
+                  Общая лента и CSV-экспорт результатов
                 </div>
               </div>
             </div>
