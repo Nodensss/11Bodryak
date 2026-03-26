@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Vote {
+  id                 Int      @id @default(autoincrement())
+  fullName           String   @map("full_name") @db.VarChar(100)
+  normalizedFullName String   @unique @map("normalized_full_name") @db.VarChar(100)
+  selectedDates      String[] @map("selected_dates")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("votes")
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  authorName String   @map("author_name") @db.VarChar(100)
+  text       String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("comments")
+}
