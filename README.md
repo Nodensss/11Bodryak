@@ -28,6 +28,7 @@
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/class_reunion?schema=public"
+ADMIN_SECRET="change-me"
 ```
 
 ## Локальный запуск
@@ -39,6 +40,8 @@ npm install
 ```
 
 2. Настроить `.env` с рабочим `DATABASE_URL`.
+
+`ADMIN_SECRET` необязателен, но нужен, если хочешь использовать админ-панель для очистки старых голосов и комментариев прямо с сайта.
 
 3. Применить миграции:
 
@@ -99,6 +102,7 @@ git commit -m "Initial class reunion app"
 Добавить переменную:
 
 - `DATABASE_URL` = строка подключения к PostgreSQL
+- `ADMIN_SECRET` = секрет для админ-панели очистки данных
 
 ### 5. Указать build command
 

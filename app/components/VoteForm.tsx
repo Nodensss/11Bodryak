@@ -17,10 +17,9 @@ type MonthGroup = {
   monthKey: string;
   monthLabel: string;
   year: number;
-  monthIndex: number;
   firstWeekdayOffset: number;
   daysInMonth: number;
-  optionsByDay: Map<number, DateOption>;
+  optionsByDay: Map<number, DateOption[]>;
 };
 
 const WEEKDAY_HEADERS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -48,7 +47,8 @@ function groupDateOptionsByMonth(dateOptions: DateOption[]): MonthGroup[] {
     const existingGroup = groups.get(option.monthKey);
 
     if (existingGroup) {
-      existingGroup.optionsByDay.set(option.dayNumber, option);
+      const dayOptions = existingGroup.optionsByDay.get(option.dayNumber) ?? [];
+      existingGroup.optionsByDay.set(option.dayNumber, [...dayOptions, option]);
       continue;
     }
 
@@ -60,10 +60,9 @@ function groupDateOptionsByMonth(dateOptions: DateOption[]): MonthGroup[] {
       monthKey: option.monthKey,
       monthLabel: option.monthLabel,
       year: option.year,
-      monthIndex: option.monthIndex,
       firstWeekdayOffset: getMondayFirstWeekday(monthStartDate),
       daysInMonth: getDaysInMonth(option.year, option.monthIndex),
-      optionsByDay: new Map([[option.dayNumber, option]]),
+      optionsByDay: new Map([[option.dayNumber, [option]]]),
     });
   }
 
@@ -80,6 +79,7 @@ export default function VoteForm({
   const [selectedDates, setSelectedDates] = useState(
     sortSelectedDates(initialSelectedDates, dateOptions),
   );
+  const [activeDateKey, setActiveDateKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -89,13 +89,15 @@ export default function VoteForm({
     setError(null);
   }, [dateOptions, initialFullName, initialSelectedDates]);
 
-  function handleDateToggle(value: string, checked: boolean) {
+  function handleSlotToggle(value: string) {
     setSelectedDates((current) => {
-      if (checked) {
-        return sortSelectedDates([...current, value], dateOptions);
+      const exists = current.includes(value);
+
+      if (exists) {
+        return current.filter((item) => item !== value);
       }
 
-      return current.filter((item) => item !== value);
+      return sortSelectedDates([...current, value], dateOptions);
     });
   }
 
@@ -145,14 +147,19 @@ export default function VoteForm({
   }
 
   const monthGroups = groupDateOptionsByMonth(dateOptions);
+  const selectedDayCount = new Set(
+    dateOptions
+      .filter((option) => selectedDates.includes(option.value))
+      .map((option) => option.dateKey),
+  ).size;
 
   return (
     <div className="rounded-[28px] border border-sky/70 bg-white/80 p-5 shadow-card backdrop-blur sm:p-7">
       <div className="mb-6 flex flex-col gap-2">
         <h2 className="text-2xl font-semibold text-ink">Голосование</h2>
         <p className="text-sm leading-6 text-ink/65">
-          Укажи фамилию и имя, затем выбери подходящие даты в компактном
-          календаре с июня по сентябрь 2026.
+          Нажми на число в календаре, затем отметь внутри выбранного дня
+          подходящее время: день, вечер или оба варианта.
         </p>
       </div>
 
@@ -181,20 +188,26 @@ export default function VoteForm({
               Период: <span className="font-semibold text-ink">июнь - сентябрь 2026</span>
             </span>
             <span className="rounded-full bg-white px-3 py-1">
-              Вариантов: <span className="font-semibold text-ink">{dateOptions.length}</span>
+              Доступных дней:{" "}
+              <span className="font-semibold text-ink">
+                {new Set(dateOptions.map((option) => option.dateKey)).size}
+              </span>
             </span>
             <span className="rounded-full bg-white px-3 py-1">
-              Выбрано: <span className="font-semibold text-ink">{selectedDates.length}</span>
+              Выбрано дней: <span className="font-semibold text-ink">{selectedDayCount}</span>
+            </span>
+            <span className="rounded-full bg-white px-3 py-1">
+              Выбрано слотов: <span className="font-semibold text-ink">{selectedDates.length}</span>
             </span>
           </div>
         </div>
 
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-semibold text-ink">Удобные даты</p>
+            <p className="text-sm font-semibold text-ink">Календарь дат</p>
             <p className="mt-1 text-xs text-ink/50">
-              Выбирай пятницу, субботу и воскресенье. Пятницы отмечены как
-              вечерние.
+              Активны пятницы, субботы и воскресенья. После клика по дню откроются
+              кнопки выбора времени.
             </p>
           </div>
 
@@ -214,7 +227,7 @@ export default function VoteForm({
                     </p>
                   </div>
                   <span className="rounded-full bg-sky/40 px-3 py-1 text-xs font-semibold text-ink/70">
-                    {monthGroup.optionsByDay.size} дат для выбора
+                    {monthGroup.optionsByDay.size} дней для выбора
                   </span>
                 </div>
 
@@ -230,7 +243,7 @@ export default function VoteForm({
                   {Array.from({ length: monthGroup.firstWeekdayOffset }).map(
                     (_, index) => (
                       <div
-                        className="h-[70px] rounded-2xl bg-sky/15"
+                        className="h-[74px] rounded-2xl bg-sky/15"
                         key={`${monthGroup.monthKey}-offset-${index}`}
                       />
                     ),
@@ -238,12 +251,12 @@ export default function VoteForm({
 
                   {Array.from({ length: monthGroup.daysInMonth }, (_, index) => {
                     const dayNumber = index + 1;
-                    const option = monthGroup.optionsByDay.get(dayNumber);
+                    const dayOptions = monthGroup.optionsByDay.get(dayNumber);
 
-                    if (!option) {
+                    if (!dayOptions) {
                       return (
                         <div
-                          className="flex h-[70px] items-start justify-end rounded-2xl border border-transparent bg-sky/10 p-2 text-xs text-ink/30"
+                          className="flex h-[74px] items-start justify-end rounded-2xl border border-transparent bg-sky/10 p-2 text-xs text-ink/30"
                           key={`${monthGroup.monthKey}-day-${dayNumber}`}
                         >
                           {dayNumber}
@@ -251,55 +264,75 @@ export default function VoteForm({
                       );
                     }
 
-                    const checked = selectedDates.includes(option.value);
+                    const [firstOption] = dayOptions;
+                    const selectedForDay = dayOptions.filter((option) =>
+                      selectedDates.includes(option.value),
+                    );
+                    const isExpanded = activeDateKey === firstOption.dateKey;
 
                     return (
-                      <label
-                        className={`group flex h-[70px] cursor-pointer flex-col justify-between rounded-2xl border p-2.5 transition ${
-                          checked
-                            ? "border-accent bg-accent text-white shadow-sm"
+                      <div
+                        className={`rounded-2xl border p-2 transition ${
+                          selectedForDay.length > 0
+                            ? "border-accent bg-accent/10"
                             : "border-sky/80 bg-white hover:border-accent/35 hover:bg-sky/10"
                         }`}
-                        key={option.value}
+                        key={firstOption.dateKey}
                       >
-                        <input
-                          checked={checked}
-                          className="sr-only"
-                          onChange={(event) =>
-                            handleDateToggle(option.value, event.target.checked)
+                        <button
+                          className="flex w-full flex-col gap-1 text-left"
+                          onClick={() =>
+                            setActiveDateKey((current) =>
+                              current === firstOption.dateKey
+                                ? null
+                                : firstOption.dateKey,
+                            )
                           }
-                          type="checkbox"
-                        />
-                        <div className="flex items-start justify-between gap-2">
-                          <span
-                            className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                              checked ? "text-white/80" : "text-accent/75"
-                            }`}
-                          >
-                            {option.weekdayLabel}
+                          type="button"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent/75">
+                              {firstOption.weekdayLabel}
+                            </span>
+                            {selectedForDay.length > 0 ? (
+                              <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                {selectedForDay.length}
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="text-lg font-semibold text-ink">
+                            {dayNumber}
                           </span>
-                          <span
-                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
-                              checked
-                                ? "bg-white/20 text-white"
-                                : "bg-sky/35 text-accent/65"
-                            }`}
-                          >
-                            ✓
+                          <span className="text-[11px] text-ink/45">
+                            {selectedForDay.length > 0
+                              ? selectedForDay.map((option) => option.timeLabel).join(", ")
+                              : "Нажми для выбора"}
                           </span>
-                        </div>
+                        </button>
 
-                        <div className="flex items-end justify-between gap-2">
-                          <span className="text-lg font-semibold">{dayNumber}</span>
-                          <span
-                            className={`text-[11px] font-medium ${
-                              checked ? "text-white/80" : "text-ink/50"
-                            }`}
-                          >
-                            {option.isEvening ? "вечер" : "свободно"}
-                          </span>
-                        </div>
-                      </label>
+                        {isExpanded || selectedForDay.length > 0 ? (
+                          <div className="mt-2 grid grid-cols-2 gap-1.5">
+                            {dayOptions.map((option) => {
+                              const checked = selectedDates.includes(option.value);
+
+                              return (
+                                <button
+                                  className={`rounded-xl px-2 py-2 text-xs font-semibold transition ${
+                                    checked
+                                      ? "bg-accent text-white"
+                                      : "bg-sky/20 text-ink/70 hover:bg-sky/35"
+                                  }`}
+                                  key={option.value}
+                                  onClick={() => handleSlotToggle(option.value)}
+                                  type="button"
+                                >
+                                  {option.timeLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
@@ -316,7 +349,7 @@ export default function VoteForm({
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-ink/55">
-            Можно выбрать несколько выходных и вечерних пятниц.
+            Можно отметить и дневной, и вечерний вариант в один и тот же день.
           </p>
           <button
             className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:bg-accent/50"

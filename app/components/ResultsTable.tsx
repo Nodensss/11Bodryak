@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { formatDisplayDateTime } from "@/lib/dates";
-import type { CommentRecord, DateOption, VoteRecord } from "@/lib/types";
+import type { DateOption, VoteRecord } from "@/lib/types";
 
 type ResultsTableProps = {
-  comments: CommentRecord[];
   dateOptions: DateOption[];
   error: string | null;
   isRefreshing: boolean;
@@ -13,80 +12,7 @@ type ResultsTableProps = {
   votes: VoteRecord[];
 };
 
-function escapeCsvCell(value: string) {
-  const escapedValue = value.replaceAll('"', '""');
-
-  if (
-    escapedValue.includes(";") ||
-    escapedValue.includes("\n") ||
-    escapedValue.includes('"')
-  ) {
-    return `"${escapedValue}"`;
-  }
-
-  return escapedValue;
-}
-
-function buildCsv(
-  dateOptions: DateOption[],
-  votes: VoteRecord[],
-  comments: CommentRecord[],
-) {
-  const sortedVotes = [...votes].sort((left, right) =>
-    left.fullName.localeCompare(right.fullName, "ru"),
-  );
-  const lines: string[] = [];
-
-  lines.push("Сводка голосования");
-  lines.push(["Дата", "Итого", "Выбрали"].map(escapeCsvCell).join(";"));
-
-  for (const option of dateOptions) {
-    const selectedVotes = sortedVotes.filter((vote) =>
-      vote.selectedDates.includes(option.value),
-    );
-    const selectedBy = selectedVotes.map((vote) => vote.fullName).join(", ");
-
-    lines.push(
-      [option.label, String(selectedVotes.length), selectedBy]
-        .map(escapeCsvCell)
-        .join(";"),
-    );
-  }
-
-  lines.push("");
-  lines.push("Проголосовавшие");
-  lines.push(["Имя", "Выбранные даты", "Обновлено"].map(escapeCsvCell).join(";"));
-
-  for (const vote of sortedVotes) {
-    const selectedLabels = dateOptions
-      .filter((option) => vote.selectedDates.includes(option.value))
-      .map((option) => option.label)
-      .join(", ");
-
-    lines.push(
-      [vote.fullName, selectedLabels, formatDisplayDateTime(vote.updatedAt)]
-        .map(escapeCsvCell)
-        .join(";"),
-    );
-  }
-
-  lines.push("");
-  lines.push("Комментарии");
-  lines.push(["Автор", "Комментарий", "Создано"].map(escapeCsvCell).join(";"));
-
-  for (const comment of comments) {
-    lines.push(
-      [comment.authorName, comment.text, formatDisplayDateTime(comment.createdAt)]
-        .map(escapeCsvCell)
-        .join(";"),
-    );
-  }
-
-  return `\uFEFF${lines.join("\n")}`;
-}
-
 export default function ResultsTable({
-  comments,
   dateOptions,
   error,
   isRefreshing,
@@ -135,18 +61,6 @@ export default function ResultsTable({
     }
   }
 
-  function handleDownloadCsv() {
-    const csv = buildCsv(dateOptions, votes, comments);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "11b-results.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
   return (
     <div className="space-y-5">
       <div className="rounded-[28px] border border-sky/70 bg-white/80 p-5 shadow-card backdrop-blur sm:p-7">
@@ -156,8 +70,8 @@ export default function ResultsTable({
               Результаты и обсуждение
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/65">
-              Таблица обновляется при каждом открытии вкладки. Результаты можно
-              скинуть по публичной ссылке или скачать в CSV.
+              Все результаты остаются на сайте. Чтобы показать их другим,
+              достаточно отправить публичную ссылку на страницу.
             </p>
           </div>
 
@@ -168,13 +82,6 @@ export default function ResultsTable({
               type="button"
             >
               {isLinkCopied ? "Ссылка скопирована" : "Скопировать ссылку"}
-            </button>
-            <button
-              className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white"
-              onClick={handleDownloadCsv}
-              type="button"
-            >
-              Скачать CSV
             </button>
             <button
               className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -277,7 +184,7 @@ export default function ResultsTable({
             <span className="font-semibold text-ink">{votes.length}</span>
           </span>
           <span>
-            Лучшие даты подсвечены зелёным. Максимум голосов:{" "}
+            Лучшие слоты подсвечены зелёным. Максимум голосов:{" "}
             <span className="font-semibold text-ink">{maxVotes}</span>
           </span>
         </div>

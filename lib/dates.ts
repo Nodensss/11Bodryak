@@ -4,16 +4,14 @@ const MOSCOW_TIMEZONE = "Europe/Moscow";
 const START_DATE_UTC = Date.UTC(2026, 5, 1);
 const END_DATE_UTC = Date.UTC(2026, 8, 30);
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const WEEKDAY_SUFFIXES: Record<DateOption["weekday"], string> = {
-  fri: "fri",
-  sat: "sat",
-  sun: "sun",
-};
-
 const WEEKDAY_LABELS: Record<DateOption["weekday"], DateOption["weekdayLabel"]> = {
   fri: "Пт",
   sat: "Сб",
   sun: "Вс",
+};
+const TIME_SLOT_LABELS: Record<DateOption["timeSlot"], DateOption["timeLabel"]> = {
+  day: "День",
+  evening: "Вечер",
 };
 
 function capitalize(value: string): string {
@@ -41,15 +39,19 @@ function formatMonthDay(date: Date): string {
   }).format(date);
 }
 
-function formatDateLabel(date: Date, weekday: DateOption["weekday"]): string {
+function formatDateLabel(
+  date: Date,
+  weekday: DateOption["weekday"],
+  timeSlot: DateOption["timeSlot"],
+): string {
   const dayLabel = WEEKDAY_LABELS[weekday];
-  const suffix = weekday === "fri" ? " (вечер)" : "";
+  const suffix = TIME_SLOT_LABELS[timeSlot].toLocaleLowerCase("ru-RU");
 
-  return `${dayLabel}, ${formatMonthDay(date)}${suffix}`;
+  return `${dayLabel}, ${formatMonthDay(date)} (${suffix})`;
 }
 
-function formatDateValue(date: Date, weekday: DateOption["weekday"]): string {
-  return `${toIsoDate(date)}-${WEEKDAY_SUFFIXES[weekday]}`;
+function formatDateValue(date: Date, timeSlot: DateOption["timeSlot"]): string {
+  return `${toIsoDate(date)}-${timeSlot}`;
 }
 
 export function parseIsoDate(isoDate: string): Date {
@@ -82,19 +84,23 @@ export function generateDateOptions(): DateOption[] {
       continue;
     }
 
-    dates.push({
-      value: formatDateValue(date, weekday),
-      label: formatDateLabel(date, weekday),
-      isoDate: toIsoDate(date),
-      weekday,
-      weekdayLabel: WEEKDAY_LABELS[weekday],
-      dayNumber: date.getUTCDate(),
-      monthIndex: date.getUTCMonth(),
-      monthKey: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
-      monthLabel: getMonthLabel(date),
-      year: date.getUTCFullYear(),
-      isEvening: weekday === "fri",
-    });
+    for (const timeSlot of ["day", "evening"] as const) {
+      dates.push({
+        value: formatDateValue(date, timeSlot),
+        label: formatDateLabel(date, weekday, timeSlot),
+        dateKey: toIsoDate(date),
+        isoDate: toIsoDate(date),
+        weekday,
+        weekdayLabel: WEEKDAY_LABELS[weekday],
+        timeSlot,
+        timeLabel: TIME_SLOT_LABELS[timeSlot],
+        dayNumber: date.getUTCDate(),
+        monthIndex: date.getUTCMonth(),
+        monthKey: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
+        monthLabel: getMonthLabel(date),
+        year: date.getUTCFullYear(),
+      });
+    }
   }
 
   return dates;

@@ -1,15 +1,17 @@
 export type DateOption = {
   value: string;
   label: string;
+  dateKey: string;
   isoDate: string;
   weekday: "fri" | "sat" | "sun";
   weekdayLabel: "Пт" | "Сб" | "Вс";
+  timeSlot: "day" | "evening";
+  timeLabel: "День" | "Вечер";
   dayNumber: number;
   monthIndex: number;
   monthKey: string;
   monthLabel: string;
   year: number;
-  isEvening: boolean;
 };
 
 export type VoteRecord = {

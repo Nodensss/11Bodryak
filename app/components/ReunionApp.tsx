@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useCallback, useEffect, useState } from "react";
+import AdminPanel from "@/app/components/AdminPanel";
 import CommentSection from "@/app/components/CommentSection";
 import ResultsTable from "@/app/components/ResultsTable";
 import Toast from "@/app/components/Toast";
@@ -53,6 +54,10 @@ function writeStoredVote(vote: StoredVote) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(vote));
 }
 
+function clearStoredVote() {
+  window.localStorage.removeItem(STORAGE_KEY);
+}
+
 async function parseJsonResponse<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
@@ -69,7 +74,25 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
 
   useEffect(() => {
     setStoredVote(readStoredVote());
+
+    const searchParams = new URLSearchParams(window.location.search);
+
+    if (searchParams.get("tab") === "results") {
+      setActiveTab("results");
+    }
   }, []);
+
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+
+    if (activeTab === "results") {
+      currentUrl.searchParams.set("tab", "results");
+    } else {
+      currentUrl.searchParams.delete("tab");
+    }
+
+    window.history.replaceState({}, "", currentUrl);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!toast) {
@@ -165,6 +188,30 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
     });
   }
 
+  function handleAdminReset(scope: "votes" | "comments" | "all") {
+    if (scope === "votes" || scope === "all") {
+      clearStoredVote();
+      setStoredVote(null);
+      setIsEditingVote(false);
+      setVotes([]);
+    }
+
+    if (scope === "comments" || scope === "all") {
+      setComments([]);
+    }
+
+    setToast({
+      message:
+        scope === "votes"
+          ? "Голоса очищены."
+          : scope === "comments"
+            ? "Комментарии очищены."
+            : "Голоса и комментарии очищены.",
+      tone: "success",
+    });
+    void refreshResults();
+  }
+
   const tabs: Array<{ id: TabId; label: string }> = [
     {
       id: "vote",
@@ -247,7 +294,6 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
       ) : (
         <div className="space-y-5">
           <ResultsTable
-            comments={comments}
             dateOptions={dateOptions}
             error={resultsError}
             isRefreshing={isRefreshing}
@@ -259,6 +305,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             initialAuthorName={storedVote?.fullName ?? ""}
             onCreated={handleCommentCreated}
           />
+          <AdminPanel onReset={handleAdminReset} />
         </div>
       )}
 
