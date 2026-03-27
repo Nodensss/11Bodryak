@@ -26,3 +26,24 @@ model Comment {
 
   @@map("comments")
 }
+
+model VenueVote {
+  id                 Int      @id @default(autoincrement())
+  fullName           String   @map("full_name") @db.VarChar(100)
+  normalizedFullName String   @unique @map("normalized_full_name") @db.VarChar(100)
+  venueIds           String[] @map("venue_ids")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("venue_votes")
+}
+
+model VenueImage {
+  id        Int      @id @default(autoincrement())
+  venueId   String   @unique @map("venue_id") @db.VarChar(50)
+  imageData String   @map("image_data")
+  mimeType  String   @map("mime_type") @db.VarChar(50)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("venue_images")
+}

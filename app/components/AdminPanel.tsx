@@ -1,19 +1,78 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { VoteRecord } from "@/lib/types";
+import { VENUES } from "@/lib/venues";
 
 type AdminScope = "votes" | "comments" | "all";
 
 type AdminPanelProps = {
   onReset: (scope: AdminScope) => void;
   onDeleteVote: (voteId: number, fullName: string) => void;
+  onVenueImageChanged: () => void;
   votes: VoteRecord[];
 };
 
-const STORAGE_KEY = "class-reunion-admin-secret";
+type VenueImageState = {
+  loaded: boolean;
+  url: string | null;
+};
 
-export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelProps) {
+const STORAGE_KEY = "class-reunion-admin-secret";
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const TARGET_WIDTH = 800;
+
+function resizeImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > TARGET_WIDTH) {
+          height = Math.round((height * TARGET_WIDTH) / width);
+          width = TARGET_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas not supported"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
+        const quality = mimeType === "image/jpeg" ? 0.85 : undefined;
+        const dataUrl = canvas.toDataURL(mimeType, quality);
+        const base64 = dataUrl.split(",")[1];
+
+        if (!base64) {
+          reject(new Error("Failed to encode image"));
+          return;
+        }
+
+        resolve({ base64, mimeType });
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function AdminPanel({
+  onReset,
+  onDeleteVote,
+  onVenueImageChanged,
+  votes,
+}: AdminPanelProps) {
   const [secret, setSecret] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,6 +80,12 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showVoterList, setShowVoterList] = useState(false);
+  const [showVenueImages, setShowVenueImages] = useState(false);
+  const [venueImages, setVenueImages] = useState<Record<string, VenueImageState>>({});
+  const [uploadingVenueId, setUploadingVenueId] = useState<string | null>(null);
+  const [deletingVenueId, setDeletingVenueId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingVenueId, setPendingVenueId] = useState<string | null>(null);
 
   useEffect(() => {
     const storedSecret = window.localStorage.getItem(STORAGE_KEY);
@@ -43,20 +108,52 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
     return () => window.clearTimeout(timeoutId);
   }, [success]);
 
+  useEffect(() => {
+    if (!isUnlocked || !showVenueImages) return;
+    void loadVenueImages();
+  }, [isUnlocked, showVenueImages]);
+
+  async function loadVenueImages() {
+    for (const venue of VENUES) {
+      try {
+        const response = await fetch(`/api/venue-images/${venue.id}`, {
+          cache: "no-store",
+        });
+        if (response.ok) {
+          const data = (await response.json()) as {
+            imageData: string;
+            mimeType: string;
+          };
+          setVenueImages((prev) => ({
+            ...prev,
+            [venue.id]: {
+              loaded: true,
+              url: `data:${data.mimeType};base64,${data.imageData}`,
+            },
+          }));
+        } else {
+          setVenueImages((prev) => ({
+            ...prev,
+            [venue.id]: { loaded: true, url: null },
+          }));
+        }
+      } catch {
+        setVenueImages((prev) => ({
+          ...prev,
+          [venue.id]: { loaded: true, url: null },
+        }));
+      }
+    }
+  }
+
   async function verifySecret(secretValue: string, persist = true) {
     try {
       const response = await fetch("/api/admin/verify", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          secret: secretValue,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: secretValue }),
       });
-      const payload = (await response.json()) as {
-        error?: string;
-      };
+      const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
         throw new Error(payload.error ?? "Не удалось проверить админ-ключ.");
@@ -85,7 +182,6 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
     setError(null);
     setSuccess(null);
     setIsSubmitting(true);
-
     try {
       await verifySecret(secret);
     } finally {
@@ -97,26 +193,16 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
     setError(null);
     setSuccess(null);
     setIsSubmitting(true);
-
     try {
       const response = await fetch("/api/admin/reset", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          secret,
-          scope,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret, scope }),
       });
-      const payload = (await response.json()) as {
-        error?: string;
-      };
-
+      const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Не удалось очистить данные.");
       }
-
       onReset(scope);
       setSuccess(
         scope === "votes"
@@ -140,26 +226,16 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
     setError(null);
     setSuccess(null);
     setDeletingId(voteId);
-
     try {
       const response = await fetch("/api/admin/delete-vote", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          secret,
-          voteId,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret, voteId }),
       });
-      const payload = (await response.json()) as {
-        error?: string;
-      };
-
+      const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Не удалось удалить голос.");
       }
-
       onDeleteVote(voteId, fullName);
       setSuccess(`Голос «${fullName}» удалён.`);
     } catch (deleteError) {
@@ -170,6 +246,108 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
       );
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  function handleFilePickerOpen(venueId: string) {
+    setPendingVenueId(venueId);
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (event.target) event.target.value = "";
+
+    if (!file || !pendingVenueId) return;
+
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setError("Допустимые форматы: jpg, png, webp.");
+      setPendingVenueId(null);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE * 2) {
+      setError("Файл слишком большой, максимум 2 МБ.");
+      setPendingVenueId(null);
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setUploadingVenueId(pendingVenueId);
+
+    try {
+      const { base64, mimeType } = await resizeImage(file);
+
+      if (base64.length > MAX_FILE_SIZE) {
+        throw new Error("Файл слишком большой после сжатия, максимум 2 МБ.");
+      }
+
+      const response = await fetch("/api/admin/venue-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secret,
+          venueId: pendingVenueId,
+          imageData: base64,
+          mimeType,
+        }),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Не удалось загрузить фото.");
+      }
+
+      setVenueImages((prev) => ({
+        ...prev,
+        [pendingVenueId!]: {
+          loaded: true,
+          url: `data:${mimeType};base64,${base64}`,
+        },
+      }));
+      setSuccess("Фото загружено.");
+      onVenueImageChanged();
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Не удалось загрузить фото.",
+      );
+    } finally {
+      setUploadingVenueId(null);
+      setPendingVenueId(null);
+    }
+  }
+
+  async function handleDeleteVenueImage(venueId: string) {
+    setError(null);
+    setSuccess(null);
+    setDeletingVenueId(venueId);
+    try {
+      const response = await fetch("/api/admin/venue-images", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret, venueId }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Не удалось удалить фото.");
+      }
+      setVenueImages((prev) => ({
+        ...prev,
+        [venueId]: { loaded: true, url: null },
+      }));
+      setSuccess("Фото удалено.");
+      onVenueImageChanged();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось удалить фото.",
+      );
+    } finally {
+      setDeletingVenueId(null);
     }
   }
 
@@ -186,10 +364,19 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
         <div>
           <h3 className="text-xl font-semibold text-ink">Админ-панель</h3>
           <p className="mt-1 text-sm leading-6 text-ink/55">
-            Управление голосами и комментариями. Нужен серверный ключ.
+            Управление голосами, комментариями и фото заведений.
           </p>
         </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileSelected}
+        type="file"
+      />
 
       {!isUnlocked ? (
         <form className="space-y-4" onSubmit={handleUnlock}>
@@ -304,7 +491,6 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
               <div className="space-y-2">
                 {sortedVotes.map((vote) => {
                   const isDeleting = deletingId === vote.id;
-
                   return (
                     <div
                       className="flex items-center justify-between gap-3 rounded-2xl border border-ink/8 bg-white px-4 py-3 shadow-sm transition hover:border-ink/15"
@@ -331,6 +517,86 @@ export default function AdminPanel({ onReset, onDeleteVote, votes }: AdminPanelP
                 })}
               </div>
             ) : null}
+          </div>
+
+          {/* Venue image management */}
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">
+                Управление фото заведений
+              </p>
+              <button
+                className="rounded-full bg-ink/5 px-3 py-1 text-xs font-semibold text-ink/60 transition hover:bg-ink/10 hover:text-ink"
+                onClick={() => setShowVenueImages(!showVenueImages)}
+                type="button"
+              >
+                {showVenueImages ? "Скрыть" : `Показать (${VENUES.length})`}
+              </button>
+            </div>
+
+            {showVenueImages && (
+              <div className="space-y-2">
+                {VENUES.map((venue) => {
+                  const imageState = venueImages[venue.id];
+                  const hasImage = imageState?.loaded && imageState.url;
+                  const isUploading = uploadingVenueId === venue.id;
+                  const isImageDeleting = deletingVenueId === venue.id;
+
+                  return (
+                    <div
+                      className="flex items-center gap-3 rounded-2xl border border-ink/8 bg-white px-4 py-3 shadow-sm"
+                      key={venue.id}
+                    >
+                      {/* Thumbnail */}
+                      <div className="h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-ink/5">
+                        {hasImage ? (
+                          <img
+                            alt={venue.name}
+                            className="h-full w-full object-cover"
+                            src={imageState.url!}
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs text-ink/30">
+                            Нет
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Name */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {venue.name}
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          className="rounded-full border border-accent/20 bg-accent/5 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={isUploading || isImageDeleting}
+                          onClick={() => handleFilePickerOpen(venue.id)}
+                          type="button"
+                        >
+                          {isUploading ? "Загрузка..." : "Загрузить"}
+                        </button>
+                        {hasImage && (
+                          <button
+                            className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={isUploading || isImageDeleting}
+                            onClick={() =>
+                              void handleDeleteVenueImage(venue.id)
+                            }
+                            type="button"
+                          >
+                            {isImageDeleting ? "Удаляем..." : "Удалить"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -38,6 +38,15 @@ export type CommentRecord = {
   createdAt: string;
 };
 
+export type VenueVoteRecord = {
+  id: number;
+  fullName: string;
+  normalizedFullName: string;
+  venueIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ToastState = {
   message: string;
   tone?: "success" | "error";
