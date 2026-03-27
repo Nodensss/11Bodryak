@@ -5,6 +5,7 @@ import type { VenueVoteRecord } from "@/lib/types";
 
 type VenueResultsProps = {
   venueVotes: VenueVoteRecord[];
+  hiddenVenueIds: Set<string>;
 };
 
 type VenueScore = {
@@ -14,16 +15,18 @@ type VenueScore = {
   count: number;
 };
 
-export default function VenueResults({ venueVotes }: VenueResultsProps) {
+export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResultsProps) {
   const voteCounts = new Map<string, number>();
 
   for (const vote of venueVotes) {
     for (const venueId of vote.venueIds) {
-      voteCounts.set(venueId, (voteCounts.get(venueId) ?? 0) + 1);
+      if (!hiddenVenueIds.has(venueId)) {
+        voteCounts.set(venueId, (voteCounts.get(venueId) ?? 0) + 1);
+      }
     }
   }
 
-  const scores: VenueScore[] = VENUES.filter((v) => (voteCounts.get(v.id) ?? 0) > 0)
+  const scores: VenueScore[] = VENUES.filter((v) => !hiddenVenueIds.has(v.id) && (voteCounts.get(v.id) ?? 0) > 0)
     .map((v) => ({
       venueId: v.id,
       name: v.name,

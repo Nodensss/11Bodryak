@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { ZodError } from "zod";
 import { VENUES, CATEGORY_COLORS } from "@/lib/venues";
+import type { Venue } from "@/lib/venues";
 import { fullNameSchema } from "@/lib/validation";
 
 type VenueVoteFormProps = {
   initialFullName?: string;
   initialVenueIds?: string[];
+  hiddenVenueIds: Set<string>;
   onSubmitted: (vote: { fullName: string; venueIds: string[] }) => void;
 };
 
@@ -16,13 +18,17 @@ type VenueImageCache = Record<string, string | null>;
 export default function VenueVoteForm({
   initialFullName = "",
   initialVenueIds = [],
+  hiddenVenueIds,
   onSubmitted,
 }: VenueVoteFormProps) {
   const [fullName, setFullName] = useState(initialFullName);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialVenueIds));
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageCache, setImageCache] = useState<VenueImageCache>({});
+
+  const visibleVenues = VENUES.filter((v) => !hiddenVenueIds.has(v.id));
 
   useEffect(() => {
     setFullName(initialFullName);
@@ -30,7 +36,7 @@ export default function VenueVoteForm({
   }, [initialFullName, initialVenueIds]);
 
   useEffect(() => {
-    for (const venue of VENUES) {
+    for (const venue of visibleVenues) {
       if (imageCache[venue.id] !== undefined) continue;
       setImageCache((c) => ({ ...c, [venue.id]: null }));
       fetch(`/api/venue-images/${venue.id}`, { cache: "no-store" })
@@ -59,13 +65,17 @@ export default function VenueVoteForm({
     });
   }
 
+  function handleCardTap(venueId: string) {
+    setExpandedId((current) => (current === venueId ? null : venueId));
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
     try {
       const parsedName = fullNameSchema.parse(fullName);
-      const venueIds = [...selectedIds];
+      const venueIds = [...selectedIds].filter((id) => !hiddenVenueIds.has(id));
 
       if (venueIds.length === 0) {
         setError("Выбери минимум одно место.");
@@ -113,6 +123,134 @@ export default function VenueVoteForm({
     "from-indigo-400 to-indigo-600",
   ];
 
+  function renderVenueCard(venue: Venue, index: number) {
+    const isSelected = selectedIds.has(venue.id);
+    const isExpanded = expandedId === venue.id;
+    const imageUrl = imageCache[venue.id];
+    const colorClass = placeholderColors[index % placeholderColors.length];
+
+    return (
+      <div
+        className={`group relative flex flex-col overflow-hidden rounded-[20px] border-2 transition-all ${
+          isSelected
+            ? "border-emerald-400 bg-emerald-50/30 shadow-md ring-2 ring-emerald-200"
+            : "border-ink/8 bg-white hover:border-ink/15 hover:shadow-md"
+        }`}
+        key={venue.id}
+      >
+        {/* Recommended badge */}
+        {venue.recommended && (
+          <div className="absolute right-3 top-3 z-10 rounded-full bg-amber-400 px-2.5 py-1 text-[11px] font-bold text-amber-950 shadow-sm">
+            ⭐ Рекомендуем
+          </div>
+        )}
+
+        {/* Selected check */}
+        {isSelected && (
+          <div className="absolute left-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow-sm">
+            ✓
+          </div>
+        )}
+
+        {/* Tappable area — photo + header */}
+        <button
+          className="w-full text-left"
+          onClick={() => handleCardTap(venue.id)}
+          type="button"
+        >
+          {/* Photo / Placeholder */}
+          <div className="aspect-[16/9] w-full overflow-hidden">
+            {imageUrl ? (
+              <img
+                alt={venue.name}
+                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                src={imageUrl}
+              />
+            ) : (
+              <div
+                className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${colorClass}`}
+              >
+                <span className="text-5xl font-bold text-white/80">
+                  {venue.name[0]}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Card header */}
+          <div className="flex items-start justify-between gap-2 p-4 pb-2">
+            <h3 className="text-lg font-semibold text-ink">
+              {venue.name}
+            </h3>
+            <span
+              className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                CATEGORY_COLORS[venue.category]
+              }`}
+            >
+              {venue.category}
+            </span>
+          </div>
+
+          <p className="px-4 text-sm text-ink/55 line-clamp-1">
+            {venue.description}
+          </p>
+
+          {/* Expand hint */}
+          <div className="px-4 pb-2 pt-1">
+            <span className="text-xs text-accent/60">
+              {isExpanded ? "Свернуть ▲" : "Подробнее ▼"}
+            </span>
+          </div>
+        </button>
+
+        {/* Expanded details */}
+        {isExpanded && (
+          <div className="border-t border-ink/5 bg-sky/5 px-4 py-3 text-sm">
+            <div className="grid grid-cols-1 gap-2 text-ink/65">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📍</span>
+                <span>{venue.address}</span>
+              </div>
+              {venue.phone && (
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📞</span>
+                  <span>{venue.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="text-base">👥</span>
+                <span>Вместимость: до {venue.capacity} чел.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">💰</span>
+                <span>Средний чек: {venue.avgCheck}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">🕐</span>
+                <span>Режим работы: {venue.hours}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Select button — always visible at bottom */}
+        <div className="px-4 pb-4 pt-2">
+          <button
+            className={`w-full rounded-full py-2.5 text-sm font-semibold transition ${
+              isSelected
+                ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                : "bg-ink/5 text-ink/60 hover:bg-accent hover:text-white"
+            }`}
+            onClick={() => handleToggle(venue.id)}
+            type="button"
+          >
+            {isSelected ? "✓ Выбрано" : "Выбрать"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-[28px] border border-sky/50 bg-gradient-to-br from-white/90 via-white/80 to-sky/20 p-5 shadow-card backdrop-blur sm:p-7">
       <div className="mb-6 flex flex-col gap-2">
@@ -120,8 +258,8 @@ export default function VenueVoteForm({
           Где встречаемся? Проголосуй за место!
         </h2>
         <p className="text-sm leading-6 text-ink/55">
-          Можно выбрать несколько вариантов. Нажми на карточку, чтобы
-          отметить понравившееся заведение.
+          Можно выбрать несколько вариантов. Нажми на карточку, чтобы увидеть
+          подробности, и на кнопку «Выбрать» чтобы проголосовать.
         </p>
       </div>
 
@@ -130,7 +268,7 @@ export default function VenueVoteForm({
           <div className="flex flex-wrap gap-2 text-sm text-ink/60">
             <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">
               Всего мест:{" "}
-              <span className="font-semibold text-ink">{VENUES.length}</span>
+              <span className="font-semibold text-ink">{visibleVenues.length}</span>
             </span>
             <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">
               Выбрано:{" "}
@@ -140,84 +278,7 @@ export default function VenueVoteForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {VENUES.map((venue, index) => {
-            const isSelected = selectedIds.has(venue.id);
-            const imageUrl = imageCache[venue.id];
-            const colorClass = placeholderColors[index % placeholderColors.length];
-
-            return (
-              <button
-                className={`group relative flex flex-col overflow-hidden rounded-[20px] border-2 text-left transition-all ${
-                  isSelected
-                    ? "border-emerald-400 bg-emerald-50/30 shadow-md ring-2 ring-emerald-200"
-                    : "border-ink/8 bg-white hover:border-ink/15 hover:shadow-md"
-                }`}
-                key={venue.id}
-                onClick={() => handleToggle(venue.id)}
-                type="button"
-              >
-                {/* Recommended badge */}
-                {venue.recommended && (
-                  <div className="absolute right-3 top-3 z-10 rounded-full bg-amber-400 px-2.5 py-1 text-[11px] font-bold text-amber-950 shadow-sm">
-                    ⭐ Рекомендуем
-                  </div>
-                )}
-
-                {/* Selected check */}
-                {isSelected && (
-                  <div className="absolute left-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow-sm">
-                    ✓
-                  </div>
-                )}
-
-                {/* Photo / Placeholder */}
-                <div className="aspect-[16/9] w-full overflow-hidden">
-                  {imageUrl ? (
-                    <img
-                      alt={venue.name}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                      src={imageUrl}
-                    />
-                  ) : (
-                    <div
-                      className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${colorClass}`}
-                    >
-                      <span className="text-5xl font-bold text-white/80">
-                        {venue.name[0]}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Card body */}
-                <div className="flex flex-1 flex-col gap-2 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-lg font-semibold text-ink">
-                      {venue.name}
-                    </h3>
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                        CATEGORY_COLORS[venue.category]
-                      }`}
-                    >
-                      {venue.category}
-                    </span>
-                  </div>
-
-                  <p className="line-clamp-1 text-sm text-ink/55">
-                    {venue.description}
-                  </p>
-
-                  <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-xs text-ink/50">
-                    <div>📍 {venue.address}</div>
-                    <div>👥 до {venue.capacity} чел.</div>
-                    <div>💰 {venue.avgCheck}</div>
-                    <div>🕐 {venue.hours}</div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+          {visibleVenues.map((venue, index) => renderVenueCard(venue, index))}
         </div>
 
         <div className="space-y-2">

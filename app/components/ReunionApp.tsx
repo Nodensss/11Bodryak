@@ -153,10 +153,12 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
   const [resultsError, setResultsError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [venueImageVersion, setVenueImageVersion] = useState(0);
+  const [hiddenVenueIds, setHiddenVenueIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setStoredVote(readStoredVote());
     setStoredVenueVote(readStoredVenueVote());
+    void loadHiddenVenues();
 
     const searchParams = new URLSearchParams(window.location.search);
     const tabParam = searchParams.get("tab");
@@ -193,6 +195,18 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
 
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
+
+  async function loadHiddenVenues() {
+    try {
+      const response = await fetch("/api/hidden-venues", { cache: "no-store" });
+      if (response.ok) {
+        const data = (await response.json()) as { hiddenVenueIds?: string[] };
+        setHiddenVenueIds(new Set(data.hiddenVenueIds ?? []));
+      }
+    } catch {
+      // silently ignore
+    }
+  }
 
   const refreshResults = useCallback(async () => {
     setIsRefreshing(true);
@@ -350,6 +364,10 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
     setVenueImageVersion((v) => v + 1);
   }
 
+  function handleHiddenVenuesChanged() {
+    void loadHiddenVenues();
+  }
+
   const storedFullName = storedVote?.fullName ?? storedVenueVote?.fullName ?? "";
 
   const tabs: Array<{ id: TabId; label: string }> = [
@@ -484,6 +502,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             key={`venue-form-${venueImageVersion}`}
             initialFullName={storedFullName}
             initialVenueIds={storedVenueVote?.venueIds ?? []}
+            hiddenVenueIds={hiddenVenueIds}
             onSubmitted={handleVenueVoteSubmitted}
           />
         )
@@ -496,7 +515,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             onRefresh={() => void refreshResults()}
             votes={votes}
           />
-          <VenueResults venueVotes={venueVotes} />
+          <VenueResults venueVotes={venueVotes} hiddenVenueIds={hiddenVenueIds} />
           <CommentSection
             comments={comments}
             initialAuthorName={storedFullName}
@@ -506,6 +525,8 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             onReset={handleAdminReset}
             onDeleteVote={handleDeleteVote}
             onVenueImageChanged={handleVenueImageChanged}
+            onHiddenVenuesChanged={handleHiddenVenuesChanged}
+            hiddenVenueIds={hiddenVenueIds}
             votes={votes}
           />
         </div>

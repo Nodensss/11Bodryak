@@ -47,3 +47,10 @@ model VenueImage {
 
   @@map("venue_images")
 }
+
+model HiddenVenue {
+  id      Int    @id @default(autoincrement())
+  venueId String @unique @map("venue_id") @db.VarChar(50)
+
+  @@map("hidden_venues")
+}

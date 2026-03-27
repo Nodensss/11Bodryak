@@ -10,6 +10,8 @@ type AdminPanelProps = {
   onReset: (scope: AdminScope) => void;
   onDeleteVote: (voteId: number, fullName: string) => void;
   onVenueImageChanged: () => void;
+  onHiddenVenuesChanged: () => void;
+  hiddenVenueIds: Set<string>;
   votes: VoteRecord[];
 };
 
@@ -71,6 +73,8 @@ export default function AdminPanel({
   onReset,
   onDeleteVote,
   onVenueImageChanged,
+  onHiddenVenuesChanged,
+  hiddenVenueIds,
   votes,
 }: AdminPanelProps) {
   const [secret, setSecret] = useState("");
@@ -86,6 +90,8 @@ export default function AdminPanel({
   const [deletingVenueId, setDeletingVenueId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingVenueId, setPendingVenueId] = useState<string | null>(null);
+  const [togglingVenueId, setTogglingVenueId] = useState<string | null>(null);
+  const [showVenueVisibility, setShowVenueVisibility] = useState(false);
 
   useEffect(() => {
     const storedSecret = window.localStorage.getItem(STORAGE_KEY);
@@ -351,6 +357,40 @@ export default function AdminPanel({
     }
   }
 
+  async function handleToggleVenueVisibility(venueId: string, venueName: string) {
+    setError(null);
+    setSuccess(null);
+    setTogglingVenueId(venueId);
+    try {
+      const response = await fetch("/api/admin/hidden-venues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret, venueId }),
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        hidden?: boolean;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Не удалось изменить видимость.");
+      }
+      onHiddenVenuesChanged();
+      setSuccess(
+        payload.hidden
+          ? `«${venueName}» скрыто из голосования.`
+          : `«${venueName}» возвращено в голосование.`,
+      );
+    } catch (toggleError) {
+      setError(
+        toggleError instanceof Error
+          ? toggleError.message
+          : "Не удалось изменить видимость.",
+      );
+    } finally {
+      setTogglingVenueId(null);
+    }
+  }
+
   const sortedVotes = [...votes].sort((a, b) =>
     a.fullName.localeCompare(b.fullName, "ru"),
   );
@@ -517,6 +557,67 @@ export default function AdminPanel({
                 })}
               </div>
             ) : null}
+          </div>
+
+          {/* Venue visibility management */}
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">
+                Видимость заведений в голосовании
+              </p>
+              <button
+                className="rounded-full bg-ink/5 px-3 py-1 text-xs font-semibold text-ink/60 transition hover:bg-ink/10 hover:text-ink"
+                onClick={() => setShowVenueVisibility(!showVenueVisibility)}
+                type="button"
+              >
+                {showVenueVisibility
+                  ? "Скрыть"
+                  : `Показать (${hiddenVenueIds.size} скрыто)`}
+              </button>
+            </div>
+
+            {showVenueVisibility && (
+              <div className="space-y-2">
+                {VENUES.map((venue) => {
+                  const isHidden = hiddenVenueIds.has(venue.id);
+                  const isToggling = togglingVenueId === venue.id;
+
+                  return (
+                    <div
+                      className={`flex items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm transition ${
+                        isHidden ? "border-rose-200 opacity-60" : "border-ink/8"
+                      }`}
+                      key={venue.id}
+                    >
+                      <div className="min-w-0">
+                        <p className={`truncate text-sm font-semibold ${isHidden ? "text-ink/40 line-through" : "text-ink"}`}>
+                          {venue.name}
+                        </p>
+                        <p className="text-xs text-ink/40">{venue.category}</p>
+                      </div>
+                      <button
+                        className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                          isHidden
+                            ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+                            : "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white"
+                        }`}
+                        disabled={isToggling}
+                        onClick={() =>
+                          void handleToggleVenueVisibility(venue.id, venue.name)
+                        }
+                        type="button"
+                      >
+                        {isToggling
+                          ? "..."
+                          : isHidden
+                            ? "Вернуть"
+                            : "Скрыть"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Venue image management */}
