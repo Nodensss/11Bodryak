@@ -200,10 +200,10 @@ export default function VoteForm({
   );
 
   return (
-    <div className="rounded-[28px] border border-sky/70 bg-white/80 p-5 shadow-card backdrop-blur sm:p-7">
+    <div className="rounded-[28px] border border-sky/50 bg-gradient-to-br from-white/90 via-white/80 to-sky/20 p-5 shadow-card backdrop-blur sm:p-7">
       <div className="mb-6 flex flex-col gap-2">
         <h2 className="text-2xl font-semibold text-ink">Голосование</h2>
-        <p className="text-sm leading-6 text-ink/65">
+        <p className="text-sm leading-6 text-ink/55">
           Пятницы отмечаются целиком как вечер, а для субботы и воскресенья можно
           выбрать один или несколько временных слотов.
         </p>
@@ -216,7 +216,7 @@ export default function VoteForm({
           </label>
           <input
             autoComplete="name"
-            className="w-full rounded-2xl border border-sky/80 bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+            className="w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-base text-ink shadow-sm outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
             id="fullName"
             maxLength={100}
             onChange={(event) => setFullName(event.target.value)}
@@ -228,19 +228,19 @@ export default function VoteForm({
           </p>
         </div>
 
-        <div className="rounded-3xl border border-sky/70 bg-paper/80 px-4 py-4">
-          <div className="flex flex-wrap gap-3 text-sm text-ink/70">
-            <span className="rounded-full bg-white px-3 py-1">
+        <div className="rounded-2xl border border-ink/5 bg-sky/15 px-4 py-3">
+          <div className="flex flex-wrap gap-2 text-sm text-ink/60">
+            <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">
               Период:{" "}
-              <span className="font-semibold text-ink">июнь - сентябрь 2026</span>
+              <span className="font-semibold text-ink">июнь — сентябрь 2026</span>
             </span>
-            <span className="rounded-full bg-white px-3 py-1">
-              Выбрано дат:{" "}
-              <span className="font-semibold text-ink">{selectedDayCount}</span>
+            <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">
+              Дат:{" "}
+              <span className="font-semibold text-accent">{selectedDayCount}</span>
             </span>
-            <span className="rounded-full bg-white px-3 py-1">
-              Выбрано слотов:{" "}
-              <span className="font-semibold text-ink">{selectedSlotCount}</span>
+            <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">
+              Слотов:{" "}
+              <span className="font-semibold text-accent">{selectedSlotCount}</span>
             </span>
           </div>
         </div>
@@ -258,20 +258,20 @@ export default function VoteForm({
           <div className="space-y-5">
             {monthGroups.map((monthGroup) => (
               <section
-                className="rounded-[28px] border border-sky/70 bg-white/90 p-4 sm:p-5"
+                className="rounded-[24px] border border-ink/5 bg-white/80 p-4 shadow-sm sm:p-5"
                 key={monthGroup.monthKey}
               >
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-xl font-semibold text-ink">
+                    <h3 className="text-lg font-semibold text-ink">
                       {monthGroup.monthLabel}
                     </h3>
-                    <p className="text-xs uppercase tracking-[0.18em] text-ink/45">
+                    <p className="text-xs text-ink/40">
                       {monthGroup.year}
                     </p>
                   </div>
-                  <span className="rounded-full bg-sky/40 px-3 py-1 text-xs font-semibold text-ink/70">
-                    {monthGroup.weeks.length} уикенд-блоков
+                  <span className="rounded-full bg-sky/25 px-3 py-1 text-xs font-semibold text-ink/50">
+                    {monthGroup.weeks.length} уикендов
                   </span>
                 </div>
 
@@ -410,11 +410,11 @@ export default function VoteForm({
             выбранными, если отмечен хотя бы один слот.
           </p>
           <button
-            className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:bg-accent/50"
+            className="inline-flex items-center justify-center rounded-full bg-accent px-7 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-ink hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Сохраняем..." : "Отправить"}
+            {isSubmitting ? "Сохраняем..." : "Отправить голос"}
           </button>
         </div>
       </form>

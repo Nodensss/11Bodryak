@@ -5,46 +5,53 @@ export default function HomePage() {
   return (
     <main className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="page-shell mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-white/60 shadow-card">
-        <section className="border-b border-sky/70 px-5 py-8 sm:px-8 sm:py-10 lg:px-12">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <section className="relative overflow-hidden border-b border-sky/50 px-5 py-8 sm:px-8 sm:py-10 lg:px-12">
+          {/* Decorative gradient blobs */}
+          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-gradient-to-br from-accent/10 to-sky/30 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-gradient-to-tr from-indigo-200/20 to-sky/20 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl space-y-4">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-accent/80">
-                11 «Б» • лето 2026
-              </p>
+              <div className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-white/80 px-4 py-1.5 backdrop-blur">
+                <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                <span className="text-sm font-semibold tracking-wide text-accent/90">
+                  11 «Б» — лето 2026
+                </span>
+              </div>
               <div className="space-y-3">
                 <h1 className="text-balance font-serif text-4xl leading-tight text-ink sm:text-5xl">
-                  Встреча выпускников 11 «Б» — выбери удобный день!
+                  Встреча выпускников — выбери удобный день!
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-ink/75 sm:text-lg">
+                <p className="max-w-2xl text-base leading-7 text-ink/65 sm:text-lg">
                   Отметь все подходящие даты, посмотри общую картину по
                   голосованию и обсуди детали встречи прямо на этой странице.
                 </p>
               </div>
             </div>
 
-            <div className="grid gap-3 rounded-[24px] border border-accent/10 bg-white/80 p-4 backdrop-blur sm:grid-cols-3">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/70">
+            <div className="grid gap-3 rounded-[24px] border border-ink/5 bg-white/70 p-4 shadow-sm backdrop-blur sm:grid-cols-3">
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent/60">
                   Формат
                 </div>
-                <div className="mt-1 text-sm text-ink/80">
-                  Одностраничное голосование без регистрации
+                <div className="text-sm text-ink/75">
+                  Голосование без регистрации
                 </div>
               </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/70">
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent/60">
                   Период
                 </div>
-                <div className="mt-1 text-sm text-ink/80">
-                  Июнь - сентябрь 2026, пятничный вечер и слоты по выходным
+                <div className="text-sm text-ink/75">
+                  Июнь — сентябрь 2026
                 </div>
               </div>
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/70">
-                  Комментарии
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent/60">
+                  Обсуждение
                 </div>
-                <div className="mt-1 text-sm text-ink/80">
-                  Общая лента и управление данными на сайте
+                <div className="text-sm text-ink/75">
+                  Комментарии на сайте
                 </div>
               </div>
             </div>

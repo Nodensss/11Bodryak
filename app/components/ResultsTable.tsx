@@ -137,29 +137,28 @@ export default function ResultsTable({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[28px] border border-sky/70 bg-white/80 p-5 shadow-card backdrop-blur sm:p-7">
+      <div className="rounded-[28px] border border-sky/50 bg-gradient-to-br from-white/90 via-white/80 to-sky/20 p-5 shadow-card backdrop-blur sm:p-7">
         <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-ink">
               Результаты и обсуждение
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/65">
-              В таблице каждая строка — отдельная дата, а внутри ячеек видно,
-              какой человек выбрал пятничный вечер или конкретные слоты в
-              субботу и воскресенье.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/55">
+              В таблице каждая строка — отдельная дата. Внутри ячеек видно,
+              какие слоты выбрал каждый человек.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <button
-              className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/70 shadow-sm transition hover:border-accent hover:text-accent"
               onClick={handleCopyLink}
               type="button"
             >
-              {isLinkCopied ? "Ссылка скопирована" : "Скопировать ссылку"}
+              {isLinkCopied ? "Скопировано!" : "Скопировать ссылку"}
             </button>
             <button
-              className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-4 py-2 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/70 shadow-sm transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isRefreshing}
               onClick={onRefresh}
               type="button"
@@ -176,67 +175,70 @@ export default function ResultsTable({
         ) : null}
 
         {monthGroups.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-sky/90 bg-paper px-4 py-5 text-sm text-ink/60">
-            Пока ещё нет голосов. Таблица появится после первого сохранённого
-            ответа.
+          <div className="rounded-2xl border border-dashed border-ink/10 bg-white/50 px-5 py-8 text-center text-sm text-ink/50">
+            Пока ещё нет голосов. Таблица появится после первого ответа.
           </div>
         ) : (
           <div className="space-y-5">
             {monthGroups.map((month) => (
               <section
-                className="rounded-[28px] border border-sky/70 bg-paper/65 p-4 sm:p-5"
+                className="overflow-hidden rounded-[24px] border border-ink/5 bg-white/60 shadow-sm"
                 key={month.monthKey}
               >
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-3 border-b border-ink/5 bg-gradient-to-r from-sky/30 to-transparent px-5 py-4">
                   <div>
-                    <h3 className="text-xl font-semibold text-ink">
+                    <h3 className="text-lg font-semibold text-ink">
                       {month.monthLabel}
                     </h3>
-                    <p className="text-xs uppercase tracking-[0.18em] text-ink/45">
+                    <p className="text-xs text-ink/40">
                       {month.year}
                     </p>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/65">
-                    {month.rows.length} дат с голосами
+                  <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-ink/55 shadow-sm">
+                    {month.rows.length} дат
                   </span>
                 </div>
 
-                <div className="overflow-x-auto rounded-3xl border border-sky/70 bg-white">
+                <div className="overflow-x-auto">
                   <table className="min-w-[760px] border-collapse text-sm">
-                    <thead className="bg-ink text-white">
-                      <tr>
-                        <th className="sticky left-0 min-w-[220px] border-b border-white/10 bg-ink px-4 py-3 text-left">
+                    <thead>
+                      <tr className="bg-ink text-white">
+                        <th className="sticky left-0 min-w-[200px] bg-ink px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                           Дата
                         </th>
                         {sortedVotes.map((vote) => (
                           <th
-                            className="min-w-[148px] border-b border-white/10 px-4 py-3 text-center"
+                            className="min-w-[140px] px-4 py-3 text-center text-xs font-semibold"
                             key={vote.id}
                           >
                             {vote.fullName}
                           </th>
                         ))}
-                        <th className="sticky right-0 min-w-[88px] border-b border-white/10 bg-ink px-4 py-3 text-center">
+                        <th className="sticky right-0 min-w-[80px] bg-ink px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider">
                           Итого
                         </th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {month.rows.map((option) => {
+                      {month.rows.map((option, rowIndex) => {
                         const total = rowTotals.get(option.dateKey) ?? 0;
                         const isBestDate = maxVotes > 0 && total === maxVotes;
 
                         return (
                           <tr
-                            className={
-                              isBestDate ? "bg-success/80 text-successInk" : "bg-white"
-                            }
+                            className={`transition-colors ${
+                              isBestDate
+                                ? "bg-emerald-50/80 text-emerald-900"
+                                : rowIndex % 2 === 0
+                                  ? "bg-white"
+                                  : "bg-sky/10"
+                            } hover:bg-sky/25`}
                             key={option.dateKey}
                           >
                             <td
-                              className={`sticky left-0 border-b border-sky/60 px-4 py-3 font-medium ${
-                                isBestDate ? "bg-success/90" : "bg-white"
+                              className={`sticky left-0 border-b border-ink/5 px-4 py-3.5 font-medium ${
+                                isBestDate ? "bg-emerald-50/90" : rowIndex % 2 === 0 ? "bg-white" : "bg-sky/10"
                               }`}
                             >
                               {option.label}
@@ -247,28 +249,28 @@ export default function ResultsTable({
 
                               return (
                                 <td
-                                  className="border-b border-sky/60 px-4 py-3 text-center"
+                                  className="border-b border-ink/5 px-4 py-3 text-center"
                                   key={`${option.dateKey}-${sortedVotes[index]?.id ?? index}`}
                                 >
                                   {selection ? (
                                     option.weekday === "fri" ? (
                                       <span
-                                        className={`inline-flex rounded-full px-3 py-1 text-base font-semibold ${
+                                        className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-bold ${
                                           bestSlotKeys.has(`${option.dateKey}|evening`)
-                                            ? "bg-success text-successInk"
-                                            : "bg-sky/25 text-ink"
+                                            ? "bg-emerald-100 text-emerald-700"
+                                            : "bg-sky/20 text-accent"
                                         }`}
                                       >
-                                        ✅
+                                        Вечер
                                       </span>
                                     ) : (
-                                      <div className="flex flex-wrap justify-center gap-1.5">
+                                      <div className="flex flex-wrap justify-center gap-1">
                                         {selection.slots.map((slot) => (
                                           <span
-                                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                                               bestSlotKeys.has(`${option.dateKey}|${slot}`)
-                                                ? "bg-success text-successInk"
-                                                : "bg-sky/25 text-ink/80"
+                                                ? "bg-emerald-100 text-emerald-700"
+                                                : "bg-sky/20 text-ink/65"
                                             }`}
                                             key={`${option.dateKey}-${sortedVotes[index]?.id ?? index}-${slot}`}
                                           >
@@ -278,15 +280,19 @@ export default function ResultsTable({
                                       </div>
                                     )
                                   ) : (
-                                    ""
+                                    <span className="text-ink/15">—</span>
                                   )}
                                 </td>
                               );
                             })}
 
                             <td
-                              className={`sticky right-0 border-b border-sky/60 px-4 py-3 text-center font-semibold ${
-                                isBestDate ? "bg-success/90" : "bg-white"
+                              className={`sticky right-0 border-b border-ink/5 px-4 py-3 text-center font-bold ${
+                                isBestDate
+                                  ? "bg-emerald-50/90 text-emerald-700"
+                                  : rowIndex % 2 === 0
+                                    ? "bg-white text-ink/70"
+                                    : "bg-sky/10 text-ink/70"
                               }`}
                             >
                               {total}
@@ -302,45 +308,63 @@ export default function ResultsTable({
           </div>
         )}
 
-        <div className="mt-5 rounded-[28px] border border-emerald-200 bg-emerald-50 px-5 py-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800/70">
-            Лучший вариант
-          </div>
-          <div className="mt-2 text-xl font-semibold leading-snug text-emerald-950 sm:text-2xl">
-            {getBestVariantText(
-              bestVariantOption,
-              bestVariantSlot,
-              maxSlotVotes,
-              sortedVotes.length,
-            )}
-          </div>
-          <div className="mt-3 text-sm text-emerald-900/75">
-            Общее количество проголосовавших:{" "}
-            <span className="font-semibold text-emerald-950">{votes.length}</span>
-            . Строки с максимальным числом голосов и слоты с максимальным
-            пересечением подсвечены зелёным.
+        {/* Best variant card */}
+        <div className="mt-5 overflow-hidden rounded-[24px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-emerald-50/80 to-green-50/50 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-lg">
+              🏆
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700/60">
+                Лучший вариант
+              </div>
+              <div className="mt-1 text-xl font-semibold leading-snug text-emerald-950 sm:text-2xl">
+                {getBestVariantText(
+                  bestVariantOption,
+                  bestVariantSlot,
+                  maxSlotVotes,
+                  sortedVotes.length,
+                )}
+              </div>
+              <div className="mt-2 text-sm text-emerald-800/65">
+                Всего проголосовало:{" "}
+                <span className="font-semibold text-emerald-900">{votes.length}</span>
+                {votes.length > 0 && ". Лучшие даты и слоты подсвечены зелёным."}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="rounded-[28px] border border-sky/70 bg-white/80 p-5 shadow-card backdrop-blur sm:p-7">
-        <h3 className="text-xl font-semibold text-ink">Список проголосовавших</h3>
-        <div className="mt-4 space-y-3">
-          {recentVotes.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-sky/90 bg-paper px-4 py-5 text-sm text-ink/60">
-              Пока никто не проголосовал.
+      {/* Voter list card */}
+      <div className="rounded-[28px] border border-sky/50 bg-gradient-to-br from-white/90 via-white/80 to-sky/15 p-5 shadow-card backdrop-blur sm:p-7">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky/30 text-lg">
+            👥
+          </div>
+          <div className="flex-1">
+            <h3 className="text-xl font-semibold text-ink">Список проголосовавших</h3>
+            <div className="mt-4 space-y-2">
+              {recentVotes.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-ink/10 bg-white/50 px-4 py-5 text-center text-sm text-ink/50">
+                  Пока никто не проголосовал.
+                </div>
+              ) : (
+                recentVotes.map((vote, index) => (
+                  <div
+                    className="flex items-center justify-between rounded-2xl border border-ink/5 bg-white/80 px-4 py-3 text-sm shadow-sm transition hover:border-ink/10 hover:shadow"
+                    key={vote.id}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <span className="font-semibold text-ink">{vote.fullName}</span>
+                    <span className="text-xs text-ink/40">
+                      {formatDisplayDateTime(vote.updatedAt)}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
-          ) : (
-            recentVotes.map((vote) => (
-              <div
-                className="rounded-2xl border border-sky/60 bg-paper px-4 py-3 text-sm text-ink/80"
-                key={vote.id}
-              >
-                <span className="font-semibold text-ink">{vote.fullName}</span> —{" "}
-                {formatDisplayDateTime(vote.updatedAt)}
-              </div>
-            ))
-          )}
+          </div>
         </div>
       </div>
     </div>
