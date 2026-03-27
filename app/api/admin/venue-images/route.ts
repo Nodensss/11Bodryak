@@ -18,7 +18,7 @@ const uploadSchema = z.object({
       "Файл слишком большой, максимум 2 МБ.",
     ),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"], {
-    errorMap: () => ({ message: "Допустимые форматы: jpg, png, webp." }),
+    error: "Допустимые форматы: jpg, png, webp.",
   }),
 });
 
