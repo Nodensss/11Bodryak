@@ -72,12 +72,17 @@ export default function CommentSection({
   }
 
   return (
-    <div className="rounded-[28px] border border-sky/70 bg-white/80 p-5 shadow-card backdrop-blur sm:p-7">
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold text-ink">Комментарии</h3>
-        <p className="mt-2 text-sm leading-6 text-ink/65">
-          Можно обсудить даты, формат встречи и любые организационные детали.
-        </p>
+    <div className="rounded-[28px] border border-sky/50 bg-gradient-to-br from-white/90 via-white/80 to-sky/15 p-5 shadow-card backdrop-blur sm:p-7">
+      <div className="mb-6 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky/30 text-lg">
+          💬
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold text-ink">Комментарии</h3>
+          <p className="mt-1 text-sm leading-6 text-ink/55">
+            Обсуди даты, формат встречи и любые организационные детали.
+          </p>
+        </div>
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
@@ -90,7 +95,7 @@ export default function CommentSection({
               Фамилия Имя
             </label>
             <input
-              className="w-full rounded-2xl border border-sky/80 bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+              className="w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-base text-ink shadow-sm outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
               id="commentAuthorName"
               maxLength={100}
               onChange={(event) => setAuthorName(event.target.value)}
@@ -104,7 +109,7 @@ export default function CommentSection({
               Комментарий
             </label>
             <textarea
-              className="min-h-[132px] w-full rounded-2xl border border-sky/80 bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+              className="min-h-[120px] w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-base text-ink shadow-sm outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
               id="commentText"
               maxLength={500}
               onChange={(event) => setText(event.target.value)}
@@ -121,9 +126,9 @@ export default function CommentSection({
         ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-ink/55">До 500 символов, новые сообщения сверху.</p>
+          <p className="text-xs text-ink/45">До 500 символов, новые сообщения сверху.</p>
           <button
-            className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:bg-accent/50"
+            className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-ink hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isSubmitting}
             type="submit"
           >
@@ -132,22 +137,24 @@ export default function CommentSection({
         </div>
       </form>
 
-      <div className="mt-8 space-y-4">
+      <div className="mt-8 space-y-3">
         {comments.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-sky/90 bg-paper px-4 py-5 text-sm text-ink/60">
-            Комментариев пока нет.
+          <div className="rounded-2xl border border-dashed border-ink/10 bg-white/50 px-4 py-8 text-center text-sm text-ink/50">
+            Комментариев пока нет. Будь первым!
           </div>
         ) : (
           comments.map((comment) => (
             <article
-              className="rounded-2xl border border-sky/60 bg-paper px-4 py-4"
+              className="rounded-2xl border border-ink/5 bg-white/80 px-5 py-4 shadow-sm transition hover:shadow"
               key={comment.id}
             >
-              <div className="text-sm text-ink/65">
-                <span className="font-semibold text-ink">{comment.authorName}</span> —{" "}
-                {formatDisplayDateTime(comment.createdAt)}
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-ink">{comment.authorName}</span>
+                <span className="text-xs text-ink/35">
+                  {formatDisplayDateTime(comment.createdAt)}
+                </span>
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink/85">
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink/75">
                 {comment.text}
               </p>
             </article>

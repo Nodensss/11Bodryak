@@ -260,6 +260,24 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
     void refreshResults();
   }
 
+  function handleDeleteVote(voteId: number, fullName: string) {
+    setVotes((current) => current.filter((vote) => vote.id !== voteId));
+
+    if (
+      storedVote &&
+      storedVote.fullName.toLowerCase() === fullName.toLowerCase()
+    ) {
+      clearStoredVote();
+      setStoredVote(null);
+      setIsEditingVote(false);
+    }
+
+    setToast({
+      message: `Голос «${fullName}» удалён.`,
+      tone: "success",
+    });
+  }
+
   const tabs: Array<{ id: TabId; label: string }> = [
     {
       id: "vote",
@@ -273,16 +291,16 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
 
   return (
     <div className="space-y-6">
-      <div className="inline-flex w-full flex-col gap-3 rounded-[28px] border border-accent/10 bg-white/70 p-2 backdrop-blur sm:w-auto sm:flex-row">
+      <div className="inline-flex w-full flex-col gap-1 rounded-full border border-ink/8 bg-white/70 p-1.5 shadow-sm backdrop-blur sm:w-auto sm:flex-row">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTab;
 
           return (
             <button
-              className={`rounded-[22px] px-5 py-3 text-sm font-semibold transition ${
+              className={`rounded-full px-6 py-2.5 text-sm font-semibold transition-all ${
                 isActive
-                  ? "bg-accent text-white shadow-sm"
-                  : "text-ink/70 hover:bg-white hover:text-ink"
+                  ? "bg-accent text-white shadow-md"
+                  : "text-ink/55 hover:bg-ink/5 hover:text-ink"
               }`}
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -296,33 +314,36 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
 
       {activeTab === "vote" ? (
         storedVote && !isEditingVote ? (
-          <div className="rounded-[28px] border border-sky/70 bg-white/80 p-6 shadow-card backdrop-blur sm:p-7">
-            <div className="max-w-2xl space-y-4">
-              <div className="inline-flex items-center rounded-full bg-success px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-successInk">
-                Голос уже сохранён
+          <div className="rounded-[28px] border border-sky/50 bg-gradient-to-br from-white/90 via-white/80 to-emerald-50/40 p-6 shadow-card backdrop-blur sm:p-8">
+            <div className="max-w-2xl space-y-5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm">✓</span>
+                <span className="text-sm font-semibold text-emerald-700">
+                  Голос сохранён
+                </span>
               </div>
               <div className="space-y-2">
                 <h2 className="text-2xl font-semibold text-ink">
-                  Ты уже проголосовал(а)! Можешь посмотреть результаты.
+                  Ты уже проголосовал(а)!
                 </h2>
-                <p className="text-sm leading-6 text-ink/65">
-                  Последний сохранённый голос:{" "}
+                <p className="text-sm leading-6 text-ink/55">
+                  Сохранён голос от{" "}
                   <span className="font-semibold text-ink">
                     {storedVote.fullName}
                   </span>
-                  . Если нужно, можно открыть форму и перезаписать выбор.
+                  . Можно посмотреть результаты или переголосовать.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
-                  className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink"
+                  className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-ink hover:shadow-md"
                   onClick={() => setActiveTab("results")}
                   type="button"
                 >
                   Посмотреть результаты
                 </button>
                 <button
-                  className="inline-flex items-center justify-center rounded-full border border-accent/20 bg-white px-6 py-3 text-sm font-semibold text-accent transition hover:border-accent hover:bg-accent hover:text-white"
+                  className="inline-flex items-center justify-center rounded-full border border-ink/10 bg-white px-6 py-3 text-sm font-semibold text-ink/70 shadow-sm transition hover:border-accent hover:text-accent"
                   onClick={handleRevote}
                   type="button"
                 >
@@ -353,7 +374,11 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             initialAuthorName={storedVote?.fullName ?? ""}
             onCreated={handleCommentCreated}
           />
-          <AdminPanel onReset={handleAdminReset} />
+          <AdminPanel
+            onReset={handleAdminReset}
+            onDeleteVote={handleDeleteVote}
+            votes={votes}
+          />
         </div>
       )}
 

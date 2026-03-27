@@ -11,16 +11,18 @@ export default function Toast({ toast }: ToastProps) {
     return null;
   }
 
-  const toneClasses =
-    toast.tone === "error"
-      ? "border-rose-200 bg-rose-50 text-rose-800"
-      : "border-emerald-200 bg-emerald-50 text-emerald-800";
+  const isError = toast.tone === "error";
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-50 max-w-sm">
+    <div className="pointer-events-none fixed bottom-5 right-5 z-50 max-w-sm animate-fade-in-up">
       <div
-        className={`rounded-2xl border px-4 py-3 shadow-lg backdrop-blur ${toneClasses}`}
+        className={`flex items-center gap-2.5 rounded-2xl border px-5 py-3.5 shadow-lg backdrop-blur ${
+          isError
+            ? "border-rose-200 bg-rose-50/95 text-rose-800"
+            : "border-emerald-200 bg-emerald-50/95 text-emerald-800"
+        }`}
       >
+        <span className="text-base">{isError ? "✕" : "✓"}</span>
         <p className="text-sm font-semibold">{toast.message}</p>
       </div>
     </div>
