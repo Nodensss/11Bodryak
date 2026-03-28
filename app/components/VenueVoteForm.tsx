@@ -28,7 +28,8 @@ export default function VenueVoteForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageCache, setImageCache] = useState<VenueImageCache>({});
 
-  const visibleVenues = VENUES.filter((v) => !hiddenVenueIds.has(v.id));
+  const activeVenues = VENUES.filter((v) => !hiddenVenueIds.has(v.id));
+  const hiddenVenues = VENUES.filter((v) => hiddenVenueIds.has(v.id));
 
   useEffect(() => {
     setFullName(initialFullName);
@@ -36,7 +37,7 @@ export default function VenueVoteForm({
   }, [initialFullName, initialVenueIds]);
 
   useEffect(() => {
-    for (const venue of visibleVenues) {
+    for (const venue of activeVenues) {
       if (imageCache[venue.id] !== undefined) continue;
       setImageCache((c) => ({ ...c, [venue.id]: null }));
       fetch(`/api/venue-images/${venue.id}`, { cache: "no-store" })
@@ -122,6 +123,97 @@ export default function VenueVoteForm({
     "from-teal-400 to-teal-600",
     "from-indigo-400 to-indigo-600",
   ];
+
+  function renderHiddenVenueCard(venue: Venue, index: number) {
+    const isExpanded = expandedId === venue.id;
+    const colorClass = placeholderColors[index % placeholderColors.length];
+
+    return (
+      <div
+        className="group relative flex flex-col overflow-hidden rounded-[20px] border-2 border-ink/5 bg-ink/[0.02] opacity-50 grayscale"
+        key={venue.id}
+      >
+        {/* Hidden badge */}
+        <div className="absolute right-3 top-3 z-10 rounded-full bg-ink/10 px-2.5 py-1 text-[11px] font-bold text-ink/50 shadow-sm">
+          Недоступно
+        </div>
+
+        <button
+          className="w-full text-left"
+          onClick={() => handleCardTap(venue.id)}
+          type="button"
+        >
+          <div className="aspect-[16/9] w-full overflow-hidden">
+            <div
+              className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${colorClass}`}
+            >
+              <span className="text-5xl font-bold text-white/80">
+                {venue.name[0]}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-start justify-between gap-2 p-4 pb-2">
+            <h3 className="text-lg font-semibold text-ink/50 line-through">
+              {venue.name}
+            </h3>
+            <span
+              className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                CATEGORY_COLORS[venue.category]
+              }`}
+            >
+              {venue.category}
+            </span>
+          </div>
+
+          <p className="px-4 text-sm text-ink/40 line-clamp-1">
+            {venue.description}
+          </p>
+
+          <div className="px-4 pb-2 pt-1">
+            <span className="text-xs text-ink/40">
+              {isExpanded ? "Свернуть ▲" : "Подробнее ▼"}
+            </span>
+          </div>
+        </button>
+
+        {isExpanded && (
+          <div className="border-t border-ink/5 bg-ink/[0.02] px-4 py-3 text-sm">
+            <div className="grid grid-cols-1 gap-2 text-ink/45">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📍</span>
+                <span>{venue.address}</span>
+              </div>
+              {venue.phone && (
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📞</span>
+                  <span>{venue.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="text-base">👥</span>
+                <span>Вместимость: до {venue.capacity} чел.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">💰</span>
+                <span>Средний чек: {venue.avgCheck}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">🕐</span>
+                <span>Режим работы: {venue.hours}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="px-4 pb-4 pt-2">
+          <div className="w-full rounded-full bg-ink/5 py-2.5 text-center text-sm font-semibold text-ink/30">
+            Скрыто админом
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function renderVenueCard(venue: Venue, index: number) {
     const isSelected = selectedIds.has(venue.id);
@@ -267,8 +359,8 @@ export default function VenueVoteForm({
         <div className="rounded-2xl border border-ink/5 bg-sky/15 px-4 py-3">
           <div className="flex flex-wrap gap-2 text-sm text-ink/60">
             <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">
-              Всего мест:{" "}
-              <span className="font-semibold text-ink">{visibleVenues.length}</span>
+              Доступно мест:{" "}
+              <span className="font-semibold text-ink">{activeVenues.length}</span>
             </span>
             <span className="rounded-full bg-white/80 px-3 py-1 shadow-sm">
               Выбрано:{" "}
@@ -278,7 +370,8 @@ export default function VenueVoteForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {visibleVenues.map((venue, index) => renderVenueCard(venue, index))}
+          {activeVenues.map((venue, index) => renderVenueCard(venue, index))}
+          {hiddenVenues.map((venue, index) => renderHiddenVenueCard(venue, activeVenues.length + index))}
         </div>
 
         <div className="space-y-2">
