@@ -122,6 +122,18 @@ export default function ResultsTable({
     }))
     .filter((month) => month.rows.length > 0);
 
+  // Build per-date voter lists for mobile cards
+  function getDateVoters(dateKey: string) {
+    const voters: { name: string; slots: VoteSlot[] }[] = [];
+    for (let i = 0; i < sortedVotes.length; i++) {
+      const sel = voteSelectionMaps[i]?.get(dateKey);
+      if (sel) {
+        voters.push({ name: sortedVotes[i]!.fullName, slots: sel.slots });
+      }
+    }
+    return voters;
+  }
+
   async function handleCopyLink() {
     const currentUrl = new URL(window.location.href);
 
@@ -199,7 +211,76 @@ export default function ResultsTable({
                   </span>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Mobile card layout */}
+                <div className="block lg:hidden">
+                  <div className="divide-y divide-ink/5 px-4 py-2">
+                    {month.rows.map((option) => {
+                      const total = rowTotals.get(option.dateKey) ?? 0;
+                      const isBestDate = maxVotes > 0 && total === maxVotes;
+                      const voters = getDateVoters(option.dateKey);
+
+                      return (
+                        <div
+                          className={`py-3 ${isBestDate ? "rounded-xl bg-emerald-50/80 px-3 -mx-1" : ""}`}
+                          key={option.dateKey}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-sm font-semibold ${isBestDate ? "text-emerald-900" : "text-ink"}`}>
+                              {option.label}
+                            </span>
+                            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                              isBestDate
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-sky/20 text-ink/60"
+                            }`}>
+                              {total}
+                            </span>
+                          </div>
+
+                          {voters.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {voters.map((voter) => (
+                                <div
+                                  className="flex items-center justify-between gap-2 rounded-lg bg-white/80 px-2.5 py-1.5 text-xs"
+                                  key={`${option.dateKey}-${voter.name}`}
+                                >
+                                  <span className="font-medium text-ink/80 truncate">{voter.name}</span>
+                                  <div className="flex shrink-0 gap-1">
+                                    {option.weekday === "fri" ? (
+                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                        bestSlotKeys.has(`${option.dateKey}|evening`)
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : "bg-sky/20 text-accent"
+                                      }`}>
+                                        Вечер
+                                      </span>
+                                    ) : (
+                                      voter.slots.map((slot) => (
+                                        <span
+                                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                            bestSlotKeys.has(`${option.dateKey}|${slot}`)
+                                              ? "bg-emerald-100 text-emerald-700"
+                                              : "bg-sky/20 text-ink/60"
+                                          }`}
+                                          key={slot}
+                                        >
+                                          {getSlotCompactLabel(slot)}
+                                        </span>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Desktop table layout */}
+                <div className="hidden lg:block overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-ink text-white">
