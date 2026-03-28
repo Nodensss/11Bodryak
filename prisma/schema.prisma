@@ -55,6 +55,16 @@ model HiddenVenue {
   @@map("hidden_venues")
 }
 
+model VenueComment {
+  id         Int      @id @default(autoincrement())
+  venueId    String   @map("venue_id") @db.VarChar(50)
+  authorName String   @map("author_name") @db.VarChar(100)
+  text       String   @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("venue_comments")
+}
+
 model CustomVenue {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(100)
