@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ZodError } from "zod";
 import { VENUES, CATEGORY_COLORS } from "@/lib/venues";
 import type { Venue } from "@/lib/venues";
-import type { CustomVenueRecord, VenueCommentRecord } from "@/lib/types";
+import type { CustomVenueRecord, VenueCommentRecord, VenueVoteRecord } from "@/lib/types";
 import { fullNameSchema } from "@/lib/validation";
 
 type VenueVoteFormProps = {
@@ -12,6 +12,7 @@ type VenueVoteFormProps = {
   initialVenueIds?: string[];
   hiddenVenueIds: Set<string>;
   customVenues: CustomVenueRecord[];
+  venueVotes: VenueVoteRecord[];
   onSubmitted: (vote: { fullName: string; venueIds: string[] }) => void;
   onCustomVenueCreated: (venue: CustomVenueRecord) => void;
 };
@@ -23,6 +24,7 @@ export default function VenueVoteForm({
   initialVenueIds = [],
   hiddenVenueIds,
   customVenues,
+  venueVotes,
   onSubmitted,
   onCustomVenueCreated,
 }: VenueVoteFormProps) {
@@ -578,25 +580,121 @@ export default function VenueVoteForm({
               </span>
             </button>
             {showHidden && (
-              <div className="space-y-1 px-3 pb-3">
-                {hiddenVenues.map((venue) => (
-                  <div
-                    className="flex items-center justify-between rounded-xl bg-white/60 px-3 py-2"
-                    key={venue.id}
-                  >
-                    <div className="min-w-0">
-                      <span className="text-sm text-ink/40 line-through">
-                        {venue.name}
-                      </span>
-                      <span className="ml-2 text-[10px] text-ink/25">
-                        {venue.category}
-                      </span>
+              <div className="space-y-2 px-3 pb-3">
+                {hiddenVenues.map((venue) => {
+                  const voteCount = venueVotes.filter((v) =>
+                    v.venueIds.includes(venue.id),
+                  ).length;
+                  const comments = venueComments.filter(
+                    (c) => c.venueId === venue.id,
+                  );
+                  const isExpanded = expandedId === `hidden-${venue.id}`;
+
+                  return (
+                    <div
+                      className="rounded-xl border border-ink/5 bg-white/60"
+                      key={venue.id}
+                    >
+                      <button
+                        className="flex w-full items-center justify-between px-3 py-2.5 text-left"
+                        onClick={() =>
+                          setExpandedId(
+                            isExpanded ? null : `hidden-${venue.id}`,
+                          )
+                        }
+                        type="button"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm text-ink/40 line-through">
+                            {venue.name}
+                          </span>
+                          <span className="ml-2 text-[10px] text-ink/25">
+                            {venue.category}
+                          </span>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {voteCount > 0 && (
+                            <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[10px] font-semibold text-ink/40">
+                              {voteCount} гол.
+                            </span>
+                          )}
+                          {comments.length > 0 && (
+                            <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[10px] font-semibold text-ink/40">
+                              {comments.length} ком.
+                            </span>
+                          )}
+                          <span className="text-[10px] text-ink/25">
+                            {isExpanded ? "▲" : "▼"}
+                          </span>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t border-ink/5 px-3 pb-3 pt-2">
+                          {/* Venue details */}
+                          <div className="mb-2 grid grid-cols-1 gap-1 text-xs text-ink/40">
+                            <div>📍 {venue.address}</div>
+                            {venue.phone && <div>📞 {venue.phone}</div>}
+                            <div>👥 до {venue.capacity} чел.</div>
+                            <div>💰 {venue.avgCheck}</div>
+                          </div>
+
+                          {/* Comments */}
+                          {comments.length > 0 && (
+                            <div className="mb-2 space-y-1">
+                              {comments.map((c) => (
+                                <div
+                                  className="rounded-lg bg-ink/[0.03] px-2 py-1 text-xs"
+                                  key={c.id}
+                                >
+                                  <span className="font-semibold text-ink/50">
+                                    {c.authorName}:
+                                  </span>{" "}
+                                  <span className="text-ink/40">{c.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Comment input */}
+                          <div className="flex gap-2">
+                            <input
+                              className="min-w-0 flex-1 rounded-lg border border-ink/8 bg-white px-2 py-1.5 text-xs text-ink outline-none transition focus:border-accent"
+                              maxLength={500}
+                              onChange={(e) =>
+                                setCommentText((prev) => ({
+                                  ...prev,
+                                  [venue.id]: e.target.value,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  void handlePostComment(venue.id);
+                                }
+                              }}
+                              placeholder="Комментарий..."
+                              value={commentText[venue.id] ?? ""}
+                            />
+                            <button
+                              className="shrink-0 rounded-lg bg-accent/10 px-2 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white disabled:opacity-50"
+                              disabled={
+                                postingCommentId === venue.id ||
+                                !(commentText[venue.id]?.trim())
+                              }
+                              onClick={() => void handlePostComment(venue.id)}
+                              type="button"
+                            >
+                              {postingCommentId === venue.id
+                                ? "..."
+                                : "Отправить"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span className="shrink-0 text-[10px] text-ink/25">
-                      Недоступно
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

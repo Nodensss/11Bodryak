@@ -200,7 +200,7 @@ export default function ResultsTable({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-[760px] border-collapse text-sm">
+                  <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-ink text-white">
                         <th className="sticky left-0 min-w-[200px] bg-ink px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
@@ -208,7 +208,7 @@ export default function ResultsTable({
                         </th>
                         {sortedVotes.map((vote) => (
                           <th
-                            className="min-w-[140px] px-4 py-3 text-center text-xs font-semibold"
+                            className="min-w-[90px] px-2 py-3 text-center text-[11px] font-semibold"
                             key={vote.id}
                           >
                             {vote.fullName}

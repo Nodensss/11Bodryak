@@ -276,7 +276,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "results") {
+    if (activeTab === "results" || activeTab === "venue") {
       void refreshResults();
     }
   }, [activeTab, refreshResults]);
@@ -559,6 +559,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             initialVenueIds={storedVenueVote?.venueIds ?? []}
             hiddenVenueIds={hiddenVenueIds}
             customVenues={customVenues}
+            venueVotes={venueVotes}
             onSubmitted={handleVenueVoteSubmitted}
             onCustomVenueCreated={handleCustomVenueCreated}
           />
