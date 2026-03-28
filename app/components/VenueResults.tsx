@@ -2,11 +2,12 @@
 
 import { formatDisplayDateTime } from "@/lib/dates";
 import { VENUES, VENUE_MAP, CATEGORY_COLORS, CATEGORY_BAR_COLORS } from "@/lib/venues";
-import type { VenueVoteRecord } from "@/lib/types";
+import type { VenueVoteRecord, CustomVenueRecord } from "@/lib/types";
 
 type VenueResultsProps = {
   venueVotes: VenueVoteRecord[];
   hiddenVenueIds: Set<string>;
+  customVenues: CustomVenueRecord[];
 };
 
 type VenueScore = {
@@ -16,7 +17,21 @@ type VenueScore = {
   count: number;
 };
 
-export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResultsProps) {
+export default function VenueResults({ venueVotes, hiddenVenueIds, customVenues }: VenueResultsProps) {
+  // Build a name map for custom venues
+  const customVenueMap = new Map<string, CustomVenueRecord>();
+  for (const cv of customVenues) {
+    customVenueMap.set(`custom-${cv.id}`, cv);
+  }
+
+  function getVenueName(venueId: string): string {
+    const hardcoded = VENUE_MAP.get(venueId);
+    if (hardcoded) return hardcoded.name;
+    const custom = customVenueMap.get(venueId);
+    if (custom) return custom.name;
+    return venueId;
+  }
+
   const voteCounts = new Map<string, number>();
 
   for (const vote of venueVotes) {
@@ -27,13 +42,27 @@ export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResult
     }
   }
 
-  const scores: VenueScore[] = VENUES.filter((v) => !hiddenVenueIds.has(v.id) && (voteCounts.get(v.id) ?? 0) > 0)
+  // Scores from hardcoded venues
+  const hardcodedScores: VenueScore[] = VENUES
+    .filter((v) => !hiddenVenueIds.has(v.id) && (voteCounts.get(v.id) ?? 0) > 0)
     .map((v) => ({
       venueId: v.id,
       name: v.name,
       category: v.category,
       count: voteCounts.get(v.id) ?? 0,
-    }))
+    }));
+
+  // Scores from custom venues
+  const customScores: VenueScore[] = customVenues
+    .filter((cv) => (voteCounts.get(`custom-${cv.id}`) ?? 0) > 0)
+    .map((cv) => ({
+      venueId: `custom-${cv.id}`,
+      name: cv.name,
+      category: "Предложено",
+      count: voteCounts.get(`custom-${cv.id}`) ?? 0,
+    }));
+
+  const scores: VenueScore[] = [...hardcodedScores, ...customScores]
     .sort((a, b) => b.count - a.count);
 
   const maxCount = scores.length > 0 ? scores[0].count : 0;
@@ -76,11 +105,21 @@ export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResult
           <div className="mt-5 space-y-3">
             {scores.map((score, index) => {
               const venue = VENUE_MAP.get(score.venueId);
+              const isCustom = score.venueId.startsWith("custom-");
               const isLeader = index === 0;
               const barWidth = maxCount > 0 ? (score.count / maxCount) * 100 : 0;
               const barColor = isLeader
                 ? "bg-emerald-500"
-                : CATEGORY_BAR_COLORS[venue?.category ?? "Кафе"] ?? "bg-slate-400";
+                : isCustom
+                  ? "bg-amber-400"
+                  : CATEGORY_BAR_COLORS[venue?.category ?? "Кафе"] ?? "bg-slate-400";
+
+              const badgeClass = isCustom
+                ? "bg-amber-100 text-amber-800"
+                : venue
+                  ? CATEGORY_COLORS[venue.category]
+                  : "";
+              const badgeLabel = isCustom ? "Предложено" : venue?.category;
 
               return (
                 <div key={score.venueId} className="space-y-1.5">
@@ -88,13 +127,11 @@ export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResult
                     <span className="text-sm font-semibold text-ink">
                       {score.name}
                     </span>
-                    {venue && (
+                    {badgeLabel && (
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          CATEGORY_COLORS[venue.category]
-                        }`}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeClass}`}
                       >
-                        {venue.category}
+                        {badgeLabel}
                       </span>
                     )}
                   </div>
@@ -141,7 +178,7 @@ export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResult
             <div className="space-y-2">
               {recentVenueVotes.map((vote, index) => {
                 const venueNames = vote.venueIds
-                  .map((id) => VENUE_MAP.get(id)?.name ?? id)
+                  .map((id) => getVenueName(id))
                   .join(", ");
                 return (
                   <div

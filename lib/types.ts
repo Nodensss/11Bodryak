@@ -47,6 +47,16 @@ export type VenueVoteRecord = {
   updatedAt: string;
 };
 
+export type CustomVenueRecord = {
+  id: number;
+  name: string;
+  city: string;
+  address: string;
+  reason: string;
+  createdBy: string;
+  createdAt: string;
+};
+
 export type ToastState = {
   message: string;
   tone?: "success" | "error";

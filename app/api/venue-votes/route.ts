@@ -5,14 +5,23 @@ import { errorResponse } from "@/lib/api";
 import { fullNameSchema, normalizeFullName } from "@/lib/validation";
 import { VENUE_MAP } from "@/lib/venues";
 
+function isValidVenueId(id: string): boolean {
+  if (VENUE_MAP.has(id)) return true;
+  if (id.startsWith("custom-")) {
+    const num = Number(id.slice(7));
+    return Number.isInteger(num) && num > 0;
+  }
+  return false;
+}
+
 const venueVotePayloadSchema = z.object({
   fullName: fullNameSchema,
   venueIds: z
     .array(z.string())
     .min(1, "Выбери минимум одно место.")
-    .max(VENUE_MAP.size, "Слишком много мест.")
+    .max(50, "Слишком много мест.")
     .refine(
-      (ids) => ids.every((id) => VENUE_MAP.has(id)),
+      (ids) => ids.every(isValidVenueId),
       "Выбрано несуществующее заведение.",
     )
     .refine(

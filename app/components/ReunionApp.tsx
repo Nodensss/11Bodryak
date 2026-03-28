@@ -14,6 +14,7 @@ import {
 } from "@/lib/dates";
 import type {
   CommentRecord,
+  CustomVenueRecord,
   DateOption,
   ToastState,
   VenueVoteRecord,
@@ -154,11 +155,13 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [venueImageVersion, setVenueImageVersion] = useState(0);
   const [hiddenVenueIds, setHiddenVenueIds] = useState<Set<string>>(new Set());
+  const [customVenues, setCustomVenues] = useState<CustomVenueRecord[]>([]);
 
   useEffect(() => {
     setStoredVote(readStoredVote());
     setStoredVenueVote(readStoredVenueVote());
     void loadHiddenVenues();
+    void loadCustomVenues();
 
     const searchParams = new URLSearchParams(window.location.search);
     const tabParam = searchParams.get("tab");
@@ -208,15 +211,28 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
     }
   }
 
+  async function loadCustomVenues() {
+    try {
+      const response = await fetch("/api/custom-venues", { cache: "no-store" });
+      if (response.ok) {
+        const data = (await response.json()) as { customVenues?: CustomVenueRecord[] };
+        setCustomVenues(data.customVenues ?? []);
+      }
+    } catch {
+      // silently ignore
+    }
+  }
+
   const refreshResults = useCallback(async () => {
     setIsRefreshing(true);
     setResultsError(null);
 
     try {
-      const [votesResponse, commentsResponse, venueVotesResponse] = await Promise.all([
+      const [votesResponse, commentsResponse, venueVotesResponse, customVenuesResponse] = await Promise.all([
         fetch("/api/votes", { cache: "no-store" }),
         fetch("/api/comments", { cache: "no-store" }),
         fetch("/api/venue-votes", { cache: "no-store" }),
+        fetch("/api/custom-venues", { cache: "no-store" }),
       ]);
 
       const votesPayload = await parseJsonResponse<{
@@ -231,6 +247,10 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
         venueVotes?: VenueVoteRecord[];
         error?: string;
       }>(venueVotesResponse);
+      const customVenuesPayload = await parseJsonResponse<{
+        customVenues?: CustomVenueRecord[];
+        error?: string;
+      }>(customVenuesResponse);
 
       if (!votesResponse.ok) {
         throw new Error(votesPayload.error ?? "Не удалось загрузить голоса.");
@@ -245,6 +265,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
       setVotes(votesPayload.votes ?? []);
       setComments(commentsPayload.comments ?? []);
       setVenueVotes(venueVotesPayload.venueVotes ?? []);
+      setCustomVenues(customVenuesPayload.customVenues ?? []);
     } catch (error) {
       setResultsError(
         error instanceof Error ? error.message : "Не удалось обновить данные.",
@@ -386,6 +407,22 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
     void loadHiddenVenues();
   }
 
+  function handleCustomVenueCreated(venue: CustomVenueRecord) {
+    setCustomVenues((current) => [venue, ...current]);
+    setToast({
+      message: `Место «${venue.name}» добавлено!`,
+      tone: "success",
+    });
+  }
+
+  function handleDeleteCustomVenue(venueId: number, name: string) {
+    setCustomVenues((current) => current.filter((v) => v.id !== venueId));
+    setToast({
+      message: `Предложенное место «${name}» удалено.`,
+      tone: "success",
+    });
+  }
+
   const storedFullName = storedVote?.fullName ?? storedVenueVote?.fullName ?? "";
 
   const tabs: Array<{ id: TabId; label: string }> = [
@@ -517,11 +554,13 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
           </div>
         ) : (
           <VenueVoteForm
-            key={`venue-form-${venueImageVersion}`}
+            key={`venue-form-${venueImageVersion}-${customVenues.length}`}
             initialFullName={storedFullName}
             initialVenueIds={storedVenueVote?.venueIds ?? []}
             hiddenVenueIds={hiddenVenueIds}
+            customVenues={customVenues}
             onSubmitted={handleVenueVoteSubmitted}
+            onCustomVenueCreated={handleCustomVenueCreated}
           />
         )
       ) : (
@@ -533,7 +572,7 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             onRefresh={() => void refreshResults()}
             votes={votes}
           />
-          <VenueResults venueVotes={venueVotes} hiddenVenueIds={hiddenVenueIds} />
+          <VenueResults venueVotes={venueVotes} hiddenVenueIds={hiddenVenueIds} customVenues={customVenues} />
           <CommentSection
             comments={comments}
             initialAuthorName={storedFullName}
@@ -543,11 +582,13 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
             onReset={handleAdminReset}
             onDeleteVote={handleDeleteVote}
             onDeleteVenueVote={handleDeleteVenueVote}
+            onDeleteCustomVenue={handleDeleteCustomVenue}
             onVenueImageChanged={handleVenueImageChanged}
             onHiddenVenuesChanged={handleHiddenVenuesChanged}
             hiddenVenueIds={hiddenVenueIds}
             votes={votes}
             venueVotes={venueVotes}
+            customVenues={customVenues}
           />
         </div>
       )}
