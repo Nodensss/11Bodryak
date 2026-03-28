@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { VoteRecord, VenueVoteRecord } from "@/lib/types";
+import type { VoteRecord, VenueVoteRecord, CustomVenueRecord } from "@/lib/types";
 import { VENUES, VENUE_MAP } from "@/lib/venues";
 
 type AdminScope = "votes" | "comments" | "all";
@@ -10,11 +10,13 @@ type AdminPanelProps = {
   onReset: (scope: AdminScope) => void;
   onDeleteVote: (voteId: number, fullName: string) => void;
   onDeleteVenueVote: (voteId: number, fullName: string) => void;
+  onDeleteCustomVenue: (venueId: number, name: string) => void;
   onVenueImageChanged: () => void;
   onHiddenVenuesChanged: () => void;
   hiddenVenueIds: Set<string>;
   votes: VoteRecord[];
   venueVotes: VenueVoteRecord[];
+  customVenues: CustomVenueRecord[];
 };
 
 type VenueImageState = {
@@ -75,11 +77,13 @@ export default function AdminPanel({
   onReset,
   onDeleteVote,
   onDeleteVenueVote,
+  onDeleteCustomVenue,
   onVenueImageChanged,
   onHiddenVenuesChanged,
   hiddenVenueIds,
   votes,
   venueVotes,
+  customVenues,
 }: AdminPanelProps) {
   const [secret, setSecret] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -97,6 +101,8 @@ export default function AdminPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingVenueId, setPendingVenueId] = useState<string | null>(null);
   const [togglingVenueId, setTogglingVenueId] = useState<string | null>(null);
+  const [showCustomVenues, setShowCustomVenues] = useState(false);
+  const [deletingCustomVenueId, setDeletingCustomVenueId] = useState<number | null>(null);
   const [showVenueVisibility, setShowVenueVisibility] = useState(false);
 
   useEffect(() => {
@@ -288,6 +294,33 @@ export default function AdminPanel({
     }
   }
 
+  async function handleDeleteCustomVenue(venueId: number, name: string) {
+    setError(null);
+    setSuccess(null);
+    setDeletingCustomVenueId(venueId);
+    try {
+      const response = await fetch("/api/admin/delete-custom-venue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret, venueId }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Не удалось удалить место.");
+      }
+      onDeleteCustomVenue(venueId, name);
+      setSuccess(`Предложенное место «${name}» удалено.`);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось удалить место.",
+      );
+    } finally {
+      setDeletingCustomVenueId(null);
+    }
+  }
+
   function handleFilePickerOpen(venueId: string) {
     setPendingVenueId(venueId);
     fileInputRef.current?.click();
@@ -431,6 +464,15 @@ export default function AdminPanel({
   const sortedVenueVotes = [...venueVotes].sort((a, b) =>
     a.fullName.localeCompare(b.fullName, "ru"),
   );
+
+  const customVenueMap = new Map<string, string>();
+  for (const cv of customVenues) {
+    customVenueMap.set(`custom-${cv.id}`, cv.name);
+  }
+
+  function getVenueName(venueId: string): string {
+    return VENUE_MAP.get(venueId)?.name ?? customVenueMap.get(venueId) ?? venueId;
+  }
 
   return (
     <div className="rounded-[28px] border border-ink/10 bg-gradient-to-br from-slate-50 via-white to-sky/30 p-5 shadow-card backdrop-blur sm:p-7">
@@ -622,7 +664,7 @@ export default function AdminPanel({
                 {sortedVenueVotes.map((vote) => {
                   const isDeleting = deletingVenueVoteId === vote.id;
                   const venueNames = vote.venueIds
-                    .map((id) => VENUE_MAP.get(id)?.name ?? id)
+                    .map((id) => getVenueName(id))
                     .join(", ");
                   return (
                     <div
@@ -711,6 +753,59 @@ export default function AdminPanel({
                 })}
               </div>
             )}
+          </div>
+
+          {/* Custom venues management */}
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">
+                Предложенные места
+              </p>
+              {customVenues.length > 0 && (
+                <button
+                  className="rounded-full bg-ink/5 px-3 py-1 text-xs font-semibold text-ink/60 transition hover:bg-ink/10 hover:text-ink"
+                  onClick={() => setShowCustomVenues(!showCustomVenues)}
+                  type="button"
+                >
+                  {showCustomVenues ? "Скрыть" : `Показать (${customVenues.length})`}
+                </button>
+              )}
+            </div>
+
+            {customVenues.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-ink/10 bg-white/50 px-4 py-4 text-sm text-ink/50">
+                Нет предложенных мест.
+              </div>
+            ) : showCustomVenues ? (
+              <div className="space-y-2">
+                {customVenues.map((cv) => {
+                  const isDeleting = deletingCustomVenueId === cv.id;
+                  return (
+                    <div
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200/60 bg-amber-50/30 px-4 py-3 shadow-sm"
+                      key={cv.id}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {cv.name}
+                        </p>
+                        <p className="text-xs text-ink/45">
+                          {cv.city}, {cv.address} — от {cv.createdBy}
+                        </p>
+                      </div>
+                      <button
+                        className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isDeleting || isSubmitting}
+                        onClick={() => void handleDeleteCustomVenue(cv.id, cv.name)}
+                        type="button"
+                      >
+                        {isDeleting ? "Удаляем..." : "Удалить"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
 
           {/* Venue image management */}
