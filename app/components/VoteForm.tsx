@@ -206,34 +206,6 @@ export default function VoteForm({
           )}
         </button>
 
-        {/* Slot picker popover for sat/sun */}
-        {isExpanded && option.weekday !== "fri" && (
-          <div className="absolute left-1/2 top-full z-20 mt-1 w-36 -translate-x-1/2 rounded-xl border border-ink/10 bg-white p-2 shadow-lg">
-            <p className="mb-1.5 text-center text-[10px] font-semibold text-ink/50">
-              {option.weekday === "sat" ? "Суббота" : "Воскресенье"},{" "}
-              {day.dayNumber}
-            </p>
-            <div className="space-y-1">
-              {option.slots.map((slot) => {
-                const checked = selection?.slots.includes(slot) ?? false;
-                return (
-                  <button
-                    className={`w-full rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
-                      checked
-                        ? "bg-accent text-white"
-                        : "bg-sky/20 text-ink/60 hover:bg-sky/35"
-                    }`}
-                    key={slot}
-                    onClick={() => handleSlotToggle(option, slot)}
-                    type="button"
-                  >
-                    {getSlotButtonLabel(slot)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -337,21 +309,78 @@ export default function VoteForm({
 
                 {/* Calendar weeks */}
                 <div className="space-y-1">
-                  {month.weeks.map((week, wi) => (
-                    <div
-                      className="grid gap-1"
-                      key={`${month.monthKey}-w${wi}`}
-                      style={{
-                        gridTemplateColumns: "1fr 1fr 1fr 1fr 2fr 2fr 2fr",
-                      }}
-                    >
-                      {week.map((day, di) => (
-                        <div key={day.isoDate || `empty-${wi}-${di}`}>
-                          {renderCalendarDay(day)}
+                  {month.weeks.map((week, wi) => {
+                    // Find if any day in this week has expanded slots
+                    const expandedDay = week.find(
+                      (d) =>
+                        d.dateOption &&
+                        d.dateOption.weekday !== "fri" &&
+                        expandedDate === d.dateOption.dateKey,
+                    );
+                    const expandedOption = expandedDay?.dateOption ?? null;
+                    const expandedSelection = expandedOption
+                      ? selectionMap.get(expandedOption.dateKey)
+                      : null;
+
+                    return (
+                      <div key={`${month.monthKey}-w${wi}`}>
+                        <div
+                          className="grid gap-1"
+                          style={{
+                            gridTemplateColumns:
+                              "1fr 1fr 1fr 1fr 2fr 2fr 2fr",
+                          }}
+                        >
+                          {week.map((day, di) => (
+                            <div
+                              key={day.isoDate || `empty-${wi}-${di}`}
+                            >
+                              {renderCalendarDay(day)}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  ))}
+
+                        {/* Inline slot picker */}
+                        {expandedOption && (
+                          <div className="mt-1 rounded-xl border border-accent/20 bg-accent/5 px-3 py-2">
+                            <p className="mb-1.5 text-xs font-semibold text-ink/60">
+                              {expandedOption.weekday === "sat"
+                                ? "Суббота"
+                                : "Воскресенье"}
+                              , {expandedDay!.dayNumber} — выбери время:
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {expandedOption.slots.map((slot) => {
+                                const checked =
+                                  expandedSelection?.slots.includes(
+                                    slot,
+                                  ) ?? false;
+                                return (
+                                  <button
+                                    className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                                      checked
+                                        ? "bg-accent text-white shadow-sm"
+                                        : "bg-white text-ink/60 hover:bg-sky/30"
+                                    }`}
+                                    key={slot}
+                                    onClick={() =>
+                                      handleSlotToggle(
+                                        expandedOption,
+                                        slot,
+                                      )
+                                    }
+                                    type="button"
+                                  >
+                                    {getSlotButtonLabel(slot)}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </section>
