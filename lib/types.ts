@@ -47,6 +47,14 @@ export type VenueVoteRecord = {
   updatedAt: string;
 };
 
+export type VenueCommentRecord = {
+  id: number;
+  venueId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+};
+
 export type CustomVenueRecord = {
   id: number;
   name: string;

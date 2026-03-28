@@ -333,6 +333,107 @@ export function formatCompactSlotList(slots: VoteSlot[]): string {
     .join(", ");
 }
 
+export type CalendarDay = {
+  dayNumber: number;
+  isoDate: string;
+  isWeekend: boolean;
+  weekday: VoteDay | null;
+  dateOption: DateOption | null;
+  isCurrentMonth: boolean;
+};
+
+export type CalendarMonth = {
+  monthKey: string;
+  monthLabel: string;
+  year: number;
+  weeks: CalendarDay[][];
+};
+
+export function generateCalendarMonths(dateOptions: DateOption[]): CalendarMonth[] {
+  const optionMap = new Map(dateOptions.map((o) => [o.dateKey, o]));
+  const months: CalendarMonth[] = [];
+
+  for (let monthIdx = 5; monthIdx <= 8; monthIdx++) {
+    const firstDay = new Date(Date.UTC(2026, monthIdx, 1));
+    const year = 2026;
+    const monthLabel = capitalize(
+      new Intl.DateTimeFormat("ru-RU", {
+        month: "long",
+        timeZone: MOSCOW_TIMEZONE,
+      }).format(firstDay),
+    );
+    const monthKey = `${year}-${String(monthIdx + 1).padStart(2, "0")}`;
+
+    const daysInMonth = new Date(Date.UTC(year, monthIdx + 1, 0)).getUTCDate();
+
+    // Build all days
+    const allDays: CalendarDay[] = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(Date.UTC(year, monthIdx, d));
+      const dow = date.getUTCDay(); // 0=Sun
+      const iso = toIsoDate(date);
+      let voteDay: VoteDay | null = null;
+      if (dow === 5) voteDay = "fri";
+      else if (dow === 6) voteDay = "sat";
+      else if (dow === 0) voteDay = "sun";
+
+      allDays.push({
+        dayNumber: d,
+        isoDate: iso,
+        isWeekend: dow === 5 || dow === 6 || dow === 0,
+        weekday: voteDay,
+        dateOption: optionMap.get(iso) ?? null,
+        isCurrentMonth: true,
+      });
+    }
+
+    // Group into weeks (Mon-Sun rows)
+    const weeks: CalendarDay[][] = [];
+    let currentWeek: CalendarDay[] = [];
+
+    // Pad beginning: Monday = 0, Tuesday = 1, ... Sunday = 6
+    const firstDow = firstDay.getUTCDay();
+    const mondayOffset = firstDow === 0 ? 6 : firstDow - 1;
+    for (let p = 0; p < mondayOffset; p++) {
+      currentWeek.push({
+        dayNumber: 0,
+        isoDate: "",
+        isWeekend: false,
+        weekday: null,
+        dateOption: null,
+        isCurrentMonth: false,
+      });
+    }
+
+    for (const day of allDays) {
+      currentWeek.push(day);
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    // Pad end
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push({
+          dayNumber: 0,
+          isoDate: "",
+          isWeekend: false,
+          weekday: null,
+          dateOption: null,
+          isCurrentMonth: false,
+        });
+      }
+      weeks.push(currentWeek);
+    }
+
+    months.push({ monthKey, monthLabel, year, weeks });
+  }
+
+  return months;
+}
+
 export function formatDisplayDateTime(isoDateTime: string): string {
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",
