@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDisplayDateTime } from "@/lib/dates";
 import { VENUES, VENUE_MAP, CATEGORY_COLORS, CATEGORY_BAR_COLORS } from "@/lib/venues";
 import type { VenueVoteRecord } from "@/lib/types";
 
@@ -38,6 +39,9 @@ export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResult
   const maxCount = scores.length > 0 ? scores[0].count : 0;
   const leader = scores.length > 0 ? scores[0] : null;
   const totalVoters = venueVotes.length;
+  const recentVenueVotes = [...venueVotes].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
 
   if (scores.length === 0) {
     return (
@@ -128,6 +132,37 @@ export default function VenueResults({ venueVotes, hiddenVenueIds }: VenueResult
               </div>
             </div>
           )}
+
+          {/* Venue voter list */}
+          <div className="mt-5">
+            <h4 className="mb-3 text-sm font-semibold text-ink/60">
+              Кто проголосовал за место
+            </h4>
+            <div className="space-y-2">
+              {recentVenueVotes.map((vote, index) => {
+                const venueNames = vote.venueIds
+                  .map((id) => VENUE_MAP.get(id)?.name ?? id)
+                  .join(", ");
+                return (
+                  <div
+                    className="rounded-2xl border border-ink/5 bg-white/80 px-4 py-3 text-sm shadow-sm transition hover:border-ink/10 hover:shadow"
+                    key={vote.id}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-ink">{vote.fullName}</span>
+                      <span className="text-xs text-ink/40">
+                        {formatDisplayDateTime(vote.updatedAt)}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-ink/50">
+                      {venueNames}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { VoteRecord } from "@/lib/types";
-import { VENUES } from "@/lib/venues";
+import type { VoteRecord, VenueVoteRecord } from "@/lib/types";
+import { VENUES, VENUE_MAP } from "@/lib/venues";
 
 type AdminScope = "votes" | "comments" | "all";
 
 type AdminPanelProps = {
   onReset: (scope: AdminScope) => void;
   onDeleteVote: (voteId: number, fullName: string) => void;
+  onDeleteVenueVote: (voteId: number, fullName: string) => void;
   onVenueImageChanged: () => void;
   onHiddenVenuesChanged: () => void;
   hiddenVenueIds: Set<string>;
   votes: VoteRecord[];
+  venueVotes: VenueVoteRecord[];
 };
 
 type VenueImageState = {
@@ -72,10 +74,12 @@ function resizeImage(file: File): Promise<{ base64: string; mimeType: string }> 
 export default function AdminPanel({
   onReset,
   onDeleteVote,
+  onDeleteVenueVote,
   onVenueImageChanged,
   onHiddenVenuesChanged,
   hiddenVenueIds,
   votes,
+  venueVotes,
 }: AdminPanelProps) {
   const [secret, setSecret] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -84,6 +88,8 @@ export default function AdminPanel({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showVoterList, setShowVoterList] = useState(false);
+  const [showVenueVoterList, setShowVenueVoterList] = useState(false);
+  const [deletingVenueVoteId, setDeletingVenueVoteId] = useState<number | null>(null);
   const [showVenueImages, setShowVenueImages] = useState(false);
   const [venueImages, setVenueImages] = useState<Record<string, VenueImageState>>({});
   const [uploadingVenueId, setUploadingVenueId] = useState<string | null>(null);
@@ -255,6 +261,33 @@ export default function AdminPanel({
     }
   }
 
+  async function handleDeleteVenueVote(voteId: number, fullName: string) {
+    setError(null);
+    setSuccess(null);
+    setDeletingVenueVoteId(voteId);
+    try {
+      const response = await fetch("/api/admin/delete-venue-vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret, voteId }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Не удалось удалить голос за место.");
+      }
+      onDeleteVenueVote(voteId, fullName);
+      setSuccess(`Голос за место «${fullName}» удалён.`);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось удалить голос за место.",
+      );
+    } finally {
+      setDeletingVenueVoteId(null);
+    }
+  }
+
   function handleFilePickerOpen(venueId: string) {
     setPendingVenueId(venueId);
     fileInputRef.current?.click();
@@ -392,6 +425,10 @@ export default function AdminPanel({
   }
 
   const sortedVotes = [...votes].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName, "ru"),
+  );
+
+  const sortedVenueVotes = [...venueVotes].sort((a, b) =>
     a.fullName.localeCompare(b.fullName, "ru"),
   );
 
@@ -548,6 +585,62 @@ export default function AdminPanel({
                         className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={isDeleting || isSubmitting}
                         onClick={() => void handleDeleteVote(vote.id, vote.fullName)}
+                        type="button"
+                      >
+                        {isDeleting ? "Удаляем..." : "Удалить"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Delete individual venue votes */}
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">
+                Удалить голос за место
+              </p>
+              {sortedVenueVotes.length > 0 && (
+                <button
+                  className="rounded-full bg-ink/5 px-3 py-1 text-xs font-semibold text-ink/60 transition hover:bg-ink/10 hover:text-ink"
+                  onClick={() => setShowVenueVoterList(!showVenueVoterList)}
+                  type="button"
+                >
+                  {showVenueVoterList ? "Скрыть" : `Показать (${sortedVenueVotes.length})`}
+                </button>
+              )}
+            </div>
+
+            {sortedVenueVotes.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-ink/10 bg-white/50 px-4 py-4 text-sm text-ink/50">
+                Нет голосов за место для удаления.
+              </div>
+            ) : showVenueVoterList ? (
+              <div className="space-y-2">
+                {sortedVenueVotes.map((vote) => {
+                  const isDeleting = deletingVenueVoteId === vote.id;
+                  const venueNames = vote.venueIds
+                    .map((id) => VENUE_MAP.get(id)?.name ?? id)
+                    .join(", ");
+                  return (
+                    <div
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-ink/8 bg-white px-4 py-3 shadow-sm transition hover:border-ink/15"
+                      key={vote.id}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {vote.fullName}
+                        </p>
+                        <p className="truncate text-xs text-ink/45">
+                          {vote.venueIds.length} мест: {venueNames}
+                        </p>
+                      </div>
+                      <button
+                        className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isDeleting || isSubmitting}
+                        onClick={() => void handleDeleteVenueVote(vote.id, vote.fullName)}
                         type="button"
                       >
                         {isDeleting ? "Удаляем..." : "Удалить"}

@@ -360,6 +360,24 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
     });
   }
 
+  function handleDeleteVenueVote(voteId: number, fullName: string) {
+    setVenueVotes((current) => current.filter((vote) => vote.id !== voteId));
+
+    if (
+      storedVenueVote &&
+      storedVenueVote.fullName.toLowerCase() === fullName.toLowerCase()
+    ) {
+      window.localStorage.removeItem(VENUE_STORAGE_KEY);
+      setStoredVenueVote(null);
+      setIsEditingVenueVote(false);
+    }
+
+    setToast({
+      message: `Голос за место «${fullName}» удалён.`,
+      tone: "success",
+    });
+  }
+
   function handleVenueImageChanged() {
     setVenueImageVersion((v) => v + 1);
   }
@@ -524,10 +542,12 @@ export default function ReunionApp({ dateOptions }: ReunionAppProps) {
           <AdminPanel
             onReset={handleAdminReset}
             onDeleteVote={handleDeleteVote}
+            onDeleteVenueVote={handleDeleteVenueVote}
             onVenueImageChanged={handleVenueImageChanged}
             onHiddenVenuesChanged={handleHiddenVenuesChanged}
             hiddenVenueIds={hiddenVenueIds}
             votes={votes}
+            venueVotes={venueVotes}
           />
         </div>
       )}
